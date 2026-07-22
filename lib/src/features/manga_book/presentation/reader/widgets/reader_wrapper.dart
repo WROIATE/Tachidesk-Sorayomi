@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_android_volume_keydown/flutter_android_volume_keydown.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../../constants/app_constants.dart';
@@ -170,13 +169,14 @@ class ReaderWrapper extends HookConsumerWidget {
     final showReaderModePopup = useCallback(
       () => showDialog(
         context: context,
-        builder: (context) => RadioListPopup<ReaderMode>(
+        useRootNavigator: false,
+        builder: (dialogContext) => RadioListPopup<ReaderMode>(
           optionList: ReaderMode.values,
-          getOptionTitle: (value) => value.toLocale(context),
+          getOptionTitle: (value) => value.toLocale(dialogContext),
           value: mangaReaderMode,
-          title: context.l10n.readerMode,
+          title: dialogContext.l10n.readerMode,
           onChange: (enumValue) async {
-            if (context.mounted) Navigator.pop(context);
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
             await AsyncValue.guard(
               () => ref.read(mangaBookRepositoryProvider).patchMangaMeta(
                     mangaId: manga.id,
@@ -184,6 +184,7 @@ class ReaderWrapper extends HookConsumerWidget {
                     value: enumValue.name,
                   ),
             );
+            if (!context.mounted) return;
             ref.invalidate(mangaWithIdProvider(mangaId: manga.id));
           },
         ),
@@ -194,13 +195,14 @@ class ReaderWrapper extends HookConsumerWidget {
     final showReaderNavigationLayoutPopup = useCallback(
       () => showDialog(
         context: context,
-        builder: (context) => RadioListPopup<ReaderNavigationLayout>(
+        useRootNavigator: false,
+        builder: (dialogContext) => RadioListPopup<ReaderNavigationLayout>(
           optionList: ReaderNavigationLayout.values,
-          getOptionTitle: (value) => value.toLocale(context),
-          title: context.l10n.readerNavigationLayout,
+          getOptionTitle: (value) => value.toLocale(dialogContext),
+          title: dialogContext.l10n.readerNavigationLayout,
           value: mangaReaderNavigationLayout,
           onChange: (enumValue) async {
-            if (context.mounted) Navigator.pop(context);
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
             await AsyncValue.guard(
               () => ref.read(mangaBookRepositoryProvider).patchMangaMeta(
                     mangaId: manga.id,
@@ -208,6 +210,7 @@ class ReaderWrapper extends HookConsumerWidget {
                     value: enumValue.name,
                   ),
             );
+            if (!context.mounted) return;
             ref.invalidate(mangaWithIdProvider(mangaId: manga.id));
           },
         ),
@@ -234,6 +237,7 @@ class ReaderWrapper extends HookConsumerWidget {
             mangaId: manga.id,
             chapterId: nextPrevChapterPair!.first!.id,
             transVertical: scrollDirection != Axis.vertical,
+            startAtBeginning: true,
           ).pushReplacement(context);
           return;
         }
@@ -290,6 +294,7 @@ class ReaderWrapper extends HookConsumerWidget {
           chapterId: nextPrevChapterPair!.first!.id,
           transVertical: transVertical,
           toPrev: toPrev,
+          startAtBeginning: true,
         ).pushReplacement(context);
       }
     }, [nextPrevChapterPair, manga.id, resolvedReaderMode]);
@@ -378,7 +383,7 @@ class ReaderWrapper extends HookConsumerWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.close_rounded),
-                onTap: context.pop,
+                onTap: () => Navigator.pop(context),
               ),
               ListTile(
                 style: ListTileStyle.drawer,
@@ -386,7 +391,7 @@ class ReaderWrapper extends HookConsumerWidget {
                 title: Text(context.l10n.readerMode),
                 subtitle: Text(mangaReaderMode.toLocale(context)),
                 onTap: () {
-                  context.pop();
+                  Navigator.pop(context);
                   showReaderModePopup();
                 },
               ),
@@ -396,7 +401,7 @@ class ReaderWrapper extends HookConsumerWidget {
                 title: Text(context.l10n.readerNavigationLayout),
                 subtitle: Text(mangaReaderNavigationLayout.toLocale(context)),
                 onTap: () {
-                  context.pop();
+                  Navigator.pop(context);
                   showReaderNavigationLayoutPopup();
                 },
               ),
@@ -473,6 +478,7 @@ class ReaderWrapper extends HookConsumerWidget {
                                       chapterId: nextPrevChapterPair.first!.id,
                                       transVertical:
                                           scrollDirection != Axis.vertical,
+                                      startAtBeginning: true,
                                     ).pushReplacement(context)
                                 : null,
                             icon: const Icon(Icons.skip_next_rounded),
@@ -555,6 +561,7 @@ class ReaderWrapper extends HookConsumerWidget {
                         mangaId: nextPrevChapterPair!.first!.mangaId,
                         chapterId: nextPrevChapterPair.first!.id,
                         transVertical: scrollDirection != Axis.vertical,
+                        startAtBeginning: true,
                       ).pushReplacement(context)
                     : enhancedOnNext(),
               ),

@@ -1,5 +1,6 @@
 int resolveInitialReaderPage({
   required bool startAtEnd,
+  bool startAtBeginning = false,
   required bool isRead,
   required int lastPageRead,
   required int pageCount,
@@ -8,7 +9,7 @@ int resolveInitialReaderPage({
 
   final requestedPage = startAtEnd
       ? pageCount - 1
-      : isRead
+      : startAtBeginning || isRead
           ? 0
           : lastPageRead;
 

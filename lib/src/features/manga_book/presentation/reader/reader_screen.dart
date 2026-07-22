@@ -13,15 +13,17 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../constants/enum.dart';
 import '../../../../utils/extensions/custom_extensions.dart';
+import '../../../../utils/logger/logger.dart';
+import '../../../../utils/misc/toast/toast.dart';
 import '../../../history/presentation/history_controller.dart';
 import '../../../settings/presentation/reader/widgets/reader_ignore_safe_area_tile/reader_ignore_safe_area_tile.dart';
 import '../../../settings/presentation/reader/widgets/reader_mode_tile/reader_mode_tile.dart';
 import '../../data/manga_book/manga_book_repository.dart';
-import '../../domain/chapter_batch/chapter_batch_model.dart';
 import '../../domain/manga/manga_model.dart';
 import '../manga_details/controller/manga_details_controller.dart';
 import 'controller/reader_controller.dart';
 import 'utils/reader_initial_page.dart';
+import 'utils/reader_progress.dart';
 import 'widgets/reader_mode/continuous_reader_mode.dart';
 import 'widgets/reader_mode/single_page_reader_mode.dart';
 
@@ -31,11 +33,13 @@ class ReaderScreen extends HookConsumerWidget {
     required this.mangaId,
     required this.chapterId,
     this.startAtEnd = false,
+    this.startAtBeginning = false,
     this.showReaderLayoutAnimation = false,
   });
   final int mangaId;
   final int chapterId;
   final bool startAtEnd;
+  final bool startAtBeginning;
   final bool showReaderLayoutAnimation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,66 +50,66 @@ class ReaderScreen extends HookConsumerWidget {
     final chapter = ref.watch(chapterProviderWithIndex);
     final defaultReaderMode = ref.watch(readerModeKeyProvider);
     final ignoreSafeArea = ref.watch(readerIgnoreSafeAreaProvider).ifNull();
+    final repository = ref.watch(mangaBookRepositoryProvider);
+    final toast = ref.read(toastProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final isExiting = useRef(false);
 
-    final debounce = useRef<Timer?>(null);
-
-    final updateLastRead = useCallback((int currentPage) async {
-      final chapterValue = chapter.valueOrNull;
-      final chapterPagesValue = chapterPages.valueOrNull;
-      if (chapterValue == null || chapterPagesValue == null) return;
-
-      // Use the actual loaded pages count, not the chapter's pageCount metadata
-      final actualPageCount = chapterPagesValue.pages.length;
-
-      // Only mark as completed if we've reached the actual last page
-      final isReadingCompleted =
-          (currentPage >= (actualPageCount - 1)) && actualPageCount > 0;
-
-      await AsyncValue.guard(
-        () => ref.read(mangaBookRepositoryProvider).putChapter(
-              chapterId: chapterValue.id,
-              patch: ChapterChange(
-                lastPageRead: isReadingCompleted ? 0 : currentPage,
-                isRead: isReadingCompleted,
-              ),
+    final progressSaver = useMemoized(
+      () => ReaderProgressSaver(
+        save: (progress) async {
+          final result = await AsyncValue.guard(
+            () => repository.putChapter(
+              chapterId: chapterId,
+              patch: progress.toChapterChange(),
             ),
-      );
+          );
+          if (result.hasError) {
+            if (context.mounted) {
+              result.showToastOnError(toast);
+            } else {
+              logger.e(
+                result.error,
+                stackTrace: result.stackTrace,
+              );
+            }
+            return;
+          }
+          container.invalidate(readingHistoryProvider);
+          if (isExiting.value || !context.mounted) {
+            container.invalidate(chapterProviderWithIndex);
+            container.invalidate(mangaChapterListProvider(mangaId: mangaId));
+            container.invalidate(mangaProvider);
+          }
+        },
+      ),
+      [chapterId, repository, toast],
+    );
 
-      // Invalidate history to refresh the reading progress
-      ref.invalidate(readingHistoryProvider);
-    }, [chapter.valueOrNull, chapterPages.valueOrNull]);
+    useEffect(
+      () => () => unawaited(progressSaver.flush()),
+      [progressSaver],
+    );
 
     final onPageChanged = useCallback<AsyncValueSetter<int>>(
       (int index) async {
-        final chapterValue = chapter.valueOrNull;
         final chapterPagesValue = chapterPages.valueOrNull;
-        if (chapterValue == null || chapterPagesValue == null) return;
-
-        // Skip if chapter is already read or if we're going backwards
-        if ((chapterValue.isRead).ifNull() ||
-            (chapterValue.lastPageRead).getValueOnNullOrNegative() >= index) {
-          return;
-        }
-
-        final finalDebounce = debounce.value;
-        if ((finalDebounce?.isActive).ifNull()) {
-          finalDebounce?.cancel();
-        }
-
-        // Use actual loaded pages count instead of chapter metadata
+        if (chapterPagesValue == null) return;
         final actualPageCount = chapterPagesValue.pages.length;
+        if (actualPageCount <= 0) return;
 
-        if (index >= (actualPageCount - 1) && actualPageCount > 0) {
-          updateLastRead(index);
+        final pageIndex = index.clamp(0, actualPageCount - 1);
+        final progress = ReaderProgressUpdate(
+          pageIndex: pageIndex,
+          isCompleted: pageIndex == actualPageCount - 1,
+        );
+        if (progress.isCompleted) {
+          await progressSaver.saveImmediately(progress);
         } else {
-          debounce.value = Timer(
-            const Duration(seconds: 2),
-            () => updateLastRead(index),
-          );
+          progressSaver.schedule(progress);
         }
-        return;
       },
-      [chapter, chapterPages],
+      [chapterPages.valueOrNull, progressSaver],
     );
 
     useEffect(() {
@@ -119,6 +123,7 @@ class ReaderScreen extends HookConsumerWidget {
     return PopScope(
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) {
+          isExiting.value = true;
           ref.invalidate(chapterProviderWithIndex);
           ref.invalidate(mangaChapterListProvider(mangaId: mangaId));
         }
@@ -146,6 +151,7 @@ class ReaderScreen extends HookConsumerWidget {
                       }
                       final initialPage = resolveInitialReaderPage(
                         startAtEnd: startAtEnd,
+                        startAtBeginning: startAtBeginning,
                         isRead: chapterData.isRead,
                         lastPageRead: chapterData.lastPageRead,
                         pageCount: chapterPagesData.pages.length,

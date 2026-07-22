@@ -282,6 +282,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
           mangaId: mangaId,
           chapterId: prevNextChapterPair!.first!.id,
           transVertical: scrollDirection != Axis.vertical,
+          startAtBeginning: true,
         ).pushReplacement(context);
       } catch (e) {
         onNextPage();

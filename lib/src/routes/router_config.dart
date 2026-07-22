@@ -40,6 +40,7 @@ import '../features/settings/presentation/server/server_screen.dart';
 import '../features/settings/presentation/settings/settings_screen.dart';
 import '../utils/extensions/custom_extensions.dart';
 import '../widgets/shell/navigation_shell_screen.dart';
+import 'shared_axis_page_transitions.dart';
 
 part 'router_config.g.dart';
 part 'sub_routes/browser_routes.dart';

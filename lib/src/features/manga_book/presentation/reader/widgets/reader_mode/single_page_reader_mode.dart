@@ -56,7 +56,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
     final isZoomInteractionLocked = useState(false);
 
     useEffect(() {
-      if (onPageChanged != null) onPageChanged!(currentIndex.value);
       int currentPage = currentIndex.value;
       // Only prefetch if we have pages data
       if (chapterPages.pages.isNotEmpty) {
@@ -84,15 +83,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
       }
       return null;
     }, [currentIndex.value, chapterPages.pages.length]);
-    useEffect(() {
-      listener() {
-        final currentPage = scrollController.page;
-        if (currentPage != null) currentIndex.value = (currentPage.toInt());
-      }
-
-      scrollController.addListener(listener);
-      return () => scrollController.removeListener(listener);
-    }, [scrollController]);
     final isAnimationEnabled =
         ref.read(readerScrollAnimationProvider).ifNull(true);
     final isPinchToZoomEnabled = !kIsWeb &&
@@ -120,45 +110,58 @@ class SinglePageReaderMode extends HookConsumerWidget {
         resetToken: currentIndex.value,
         onInteractionLockChanged: (locked) =>
             isZoomInteractionLocked.value = locked,
-        child: PageView.builder(
-          scrollDirection: scrollDirection,
-          reverse: reverse,
-          controller: scrollController,
-          allowImplicitScrolling: true,
-          physics: isZoomInteractionLocked.value
-              ? const NeverScrollableScrollPhysics()
-              : const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-          itemBuilder: (BuildContext context, int index) {
-            // Show loading indicator if no pages are available yet
-            if (chapterPages.pages.isEmpty) {
-              return const Center(
-                child: CenterSorayomiShimmerIndicator(),
-              );
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: (notification) {
+            if (notification.depth == 0) {
+              final settledPage = scrollController.page?.round();
+              if (settledPage != null && settledPage != currentIndex.value) {
+                currentIndex.value = settledPage;
+                onPageChanged?.call(settledPage);
+              }
             }
-
-            // Add bounds checking to prevent accessing non-existent pages
-            if (index >= chapterPages.pages.length) {
-              return const Center(
-                child: CenterSorayomiShimmerIndicator(),
-              );
-            }
-
-            final image = ServerImage(
-              showReloadButton: true,
-              fit: BoxFit.contain,
-              size: Size.fromHeight(context.height),
-              appendApiToUrl: false,
-              imageUrl: chapterPages.pages[index],
-              progressIndicatorBuilder: (context, url, downloadProgress) =>
-                  CenterSorayomiShimmerIndicator(
-                value: downloadProgress.progress,
-              ),
-            );
-            return image;
+            return false;
           },
-          itemCount: chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+          child: PageView.builder(
+            scrollDirection: scrollDirection,
+            reverse: reverse,
+            controller: scrollController,
+            allowImplicitScrolling: true,
+            physics: isZoomInteractionLocked.value
+                ? const NeverScrollableScrollPhysics()
+                : const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+            itemBuilder: (BuildContext context, int index) {
+              // Show loading indicator if no pages are available yet
+              if (chapterPages.pages.isEmpty) {
+                return const Center(
+                  child: CenterSorayomiShimmerIndicator(),
+                );
+              }
+
+              // Add bounds checking to prevent accessing non-existent pages
+              if (index >= chapterPages.pages.length) {
+                return const Center(
+                  child: CenterSorayomiShimmerIndicator(),
+                );
+              }
+
+              final image = ServerImage(
+                showReloadButton: true,
+                fit: BoxFit.contain,
+                size: Size.fromHeight(context.height),
+                appendApiToUrl: false,
+                imageUrl: chapterPages.pages[index],
+                progressIndicatorBuilder: (context, url, downloadProgress) =>
+                    CenterSorayomiShimmerIndicator(
+                  value: downloadProgress.progress,
+                ),
+              );
+              return image;
+            },
+            itemCount:
+                chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+          ),
         ),
       ),
     );

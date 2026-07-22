@@ -27,6 +27,19 @@ void main() {
       );
     });
 
+    test('opens the next chapter at its first page despite saved progress', () {
+      expect(
+        resolveInitialReaderPage(
+          startAtEnd: false,
+          startAtBeginning: true,
+          isRead: false,
+          lastPageRead: 5,
+          pageCount: 12,
+        ),
+        0,
+      );
+    });
+
     test('restores progress for an unfinished chapter', () {
       expect(
         resolveInitialReaderPage(

@@ -145,17 +145,19 @@ class MangaBookRepository {
   Future<void> putChapter({
     required int chapterId,
     required ChapterChange patch,
-  }) async =>
-      client.mutate$UpdateChapter(
-        Options$Mutation$UpdateChapter(
-          variables: Variables$Mutation$UpdateChapter(
-            input: Input$UpdateChapterInput(
-              id: chapterId,
-              patch: patch,
+  }) =>
+      client
+          .mutate$UpdateChapters(
+            Options$Mutation$UpdateChapters(
+              variables: Variables$Mutation$UpdateChapters(
+                input: Input$UpdateChaptersInput(
+                  ids: [chapterId],
+                  patch: patch,
+                ),
+              ),
             ),
-          ),
-        ),
-      );
+          )
+          .getData((data) => data.updateChapters?.chapters);
 
   Future<void> patchMangaMeta({
     required int mangaId,

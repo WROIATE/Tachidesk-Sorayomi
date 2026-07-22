@@ -32,58 +32,35 @@ class HistoryRepository {
     DateTime? fromDate,
     DateTime? toDate,
   }) async {
-    // Build filter for chapters with actual reading progress
+    final additionalFilters = [
+      if (fromDate != null)
+        Input$ChapterFilterInput(
+          lastReadAt: Input$LongFilterInput(
+            greaterThanOrEqualTo:
+                (fromDate.millisecondsSinceEpoch ~/ 1000).toString(),
+          ),
+        ),
+      if (toDate != null)
+        Input$ChapterFilterInput(
+          lastReadAt: Input$LongFilterInput(
+            lessThanOrEqualTo:
+                (toDate.millisecondsSinceEpoch ~/ 1000).toString(),
+          ),
+        ),
+      if (searchQuery.isNotBlank)
+        Input$ChapterFilterInput(
+          name: Input$StringFilterInput(
+            includesInsensitive: searchQuery,
+          ),
+        ),
+    ];
+
     final filter = Input$ChapterFilterInput(
-      // Only get chapters from library manga
-      inLibrary: Input$BooleanFilterInput(equalTo: true),
-      // Only get chapters that have been read (lastReadAt is not null/empty)
       lastReadAt: Input$LongFilterInput(
         isNull: false,
-        greaterThan:
-            "0", // Ensure lastReadAt is actually set to a real timestamp
+        notEqualToAll: const ["0"],
       ),
-      // Only show chapters that have actual reading progress:
-      // Either fully read OR have made progress beyond the first page
-      or: [
-        // Fully completed chapters
-        Input$ChapterFilterInput(
-          isRead: Input$BooleanFilterInput(equalTo: true),
-        ),
-        // Chapters with meaningful reading progress (at least 1 page read)
-        Input$ChapterFilterInput(
-          lastPageRead: Input$IntFilterInput(greaterThan: 0),
-        ),
-      ],
-      // Additional filters
-      and: [
-        // Add date range filtering if provided
-        if (fromDate != null)
-          Input$ChapterFilterInput(
-            lastReadAt: Input$LongFilterInput(
-              greaterThanOrEqualTo: fromDate.millisecondsSinceEpoch.toString(),
-            ),
-          ),
-        if (toDate != null)
-          Input$ChapterFilterInput(
-            lastReadAt: Input$LongFilterInput(
-              lessThanOrEqualTo: toDate.millisecondsSinceEpoch.toString(),
-            ),
-          ),
-        // Add search filtering if provided
-        if (searchQuery.isNotBlank)
-          Input$ChapterFilterInput(
-            or: [
-              // Search in chapter name
-              Input$ChapterFilterInput(
-                name: Input$StringFilterInput(
-                  includesInsensitive: searchQuery,
-                ),
-              ),
-              // Note: We can't search manga title directly in chapter filter
-              // This will be handled in the UI layer
-            ],
-          ),
-      ],
+      and: additionalFilters.isEmpty ? null : additionalFilters,
     );
 
     // Order by lastReadAt descending (most recent first)
@@ -114,21 +91,9 @@ class HistoryRepository {
 
     // Filter to only show the most recent chapter per manga
     if (result?.nodes != null) {
-      // First, apply client-side filtering to ensure removed chapters are excluded
-      final validChapters = result!.nodes.where((chapter) {
-        // Only include chapters with actual reading progress:
-        // 1. Fully read chapters (isRead: true), OR
-        // 2. Chapters with meaningful progress (lastPageRead > 0)
-        // This excludes chapters that were removed from history (isRead: false AND lastPageRead: 0)
-        final isFullyRead = chapter.isRead;
-        final hasProgress = chapter.lastPageRead > 0;
-
-        return isFullyRead || hasProgress;
-      }).toList();
-
       final Map<int, HistoryItemDto> latestChapterPerManga = {};
 
-      for (final chapter in validChapters) {
+      for (final chapter in result!.nodes) {
         final mangaId = chapter.mangaId;
 
         // Only keep the first (most recent) chapter for each manga
@@ -169,7 +134,10 @@ class HistoryRepository {
   }) async {
     final filter = Input$ChapterFilterInput(
       mangaId: Input$IntFilterInput(equalTo: mangaId),
-      lastReadAt: Input$LongFilterInput(isNull: false),
+      lastReadAt: Input$LongFilterInput(
+        isNull: false,
+        notEqualToAll: const ["0"],
+      ),
     );
 
     final order = [

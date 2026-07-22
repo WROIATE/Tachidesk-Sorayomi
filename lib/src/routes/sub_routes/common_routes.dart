@@ -25,13 +25,15 @@ class ReaderRoute extends GoRouteData {
     this.transVertical,
     this.toPrev,
     this.startAtEnd = false,
+    this.startAtBeginning = false,
     this.showReaderLayoutAnimation = false,
-  });
+  }) : assert(!(startAtEnd && startAtBeginning));
   final int mangaId;
   final int chapterId;
   final bool? transVertical;
   final bool? toPrev;
   final bool startAtEnd;
+  final bool startAtBeginning;
   final bool showReaderLayoutAnimation;
 
   static final $parentNavigatorKey = _quickOpenNavigatorKey;
@@ -44,9 +46,14 @@ class ReaderRoute extends GoRouteData {
         mangaId: mangaId,
         chapterId: chapterId,
         startAtEnd: startAtEnd,
+        startAtBeginning: startAtBeginning,
         showReaderLayoutAnimation: showReaderLayoutAnimation,
       ),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final isChapterTransition = transVertical != null ||
+            toPrev != null ||
+            startAtEnd ||
+            startAtBeginning;
         Offset offset = Offset.zero;
         offset += Offset(
           transVertical.ifNull() ? 0 : 1,
@@ -56,11 +63,25 @@ class ReaderRoute extends GoRouteData {
           offset *= -1;
         }
 
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: offset,
-            end: Offset.zero,
-          ).animate(animation),
+        return DualTransitionBuilder(
+          animation: animation,
+          forwardBuilder: (context, animation, child) => isChapterTransition
+              ? SlideTransition(
+                  position: Tween<Offset>(
+                    begin: offset,
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                )
+              : SharedAxisXPushEnterTransition(
+                  animation: animation,
+                  child: child,
+                ),
+          reverseBuilder: (context, animation, child) =>
+              SharedAxisXPopExitTransition(
+            animation: animation,
+            child: child,
+          ),
           child: child,
         );
       },

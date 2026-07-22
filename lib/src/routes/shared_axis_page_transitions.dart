@@ -22,6 +22,44 @@ class SharedAxisXPageTransitionsBuilder extends PageTransitionsBuilder {
       );
 }
 
+class SharedAxisXPushEnterTransition extends StatelessWidget {
+  const SharedAxisXPushEnterTransition({
+    super.key,
+    required this.animation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) => _SlideFadeTransition(
+        animation: animation,
+        offset: _SharedAxisXTransition._incomingFromRight,
+        opacity: _SharedAxisXTransition._incomingOpacity,
+        child: child,
+      );
+}
+
+class SharedAxisXPopExitTransition extends StatelessWidget {
+  const SharedAxisXPopExitTransition({
+    super.key,
+    required this.animation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) => _SlideFadeTransition(
+        animation: animation,
+        offset: _SharedAxisXTransition._outgoingToRight,
+        opacity: _SharedAxisXTransition._outgoingOpacity,
+        child: child,
+      );
+}
+
 class _SharedAxisXTransition extends StatelessWidget {
   const _SharedAxisXTransition({
     required this.animation,
@@ -30,7 +68,7 @@ class _SharedAxisXTransition extends StatelessWidget {
   });
 
   static const _slideDistance = 30.0;
-  static const _fadeThreshold = 0.35;
+  static const _fadeDurationFraction = 195 / 300;
   static const _linearOutSlowIn = Cubic(0.0, 0.0, 0.2, 1.0);
   static const _fastOutLinearIn = Cubic(0.4, 0.0, 1.0, 1.0);
 
@@ -40,8 +78,8 @@ class _SharedAxisXTransition extends StatelessWidget {
   ).chain(
     CurveTween(
       curve: const Interval(
-        _fadeThreshold,
-        1.0,
+        0.0,
+        _fadeDurationFraction,
         curve: _linearOutSlowIn,
       ),
     ),
@@ -54,7 +92,7 @@ class _SharedAxisXTransition extends StatelessWidget {
     CurveTween(
       curve: const Interval(
         0.0,
-        _fadeThreshold,
+        _fadeDurationFraction,
         curve: _fastOutLinearIn,
       ),
     ),
@@ -88,18 +126,15 @@ class _SharedAxisXTransition extends StatelessWidget {
   Widget build(BuildContext context) {
     return DualTransitionBuilder(
       animation: animation,
-      forwardBuilder: (context, animation, child) => _SlideFadeTransition(
+      forwardBuilder: (context, animation, child) =>
+          SharedAxisXPushEnterTransition(
         animation: animation,
-        offset: _incomingFromRight,
-        opacity: _incomingOpacity,
         child: child,
       ),
       reverseBuilder: (context, animation, child) => IgnorePointer(
         ignoring: animation.status == AnimationStatus.forward,
-        child: _SlideFadeTransition(
+        child: SharedAxisXPopExitTransition(
           animation: animation,
-          offset: _outgoingToRight,
-          opacity: _outgoingOpacity,
           child: child,
         ),
       ),
