@@ -275,6 +275,9 @@ class ReaderScreen extends HookConsumerWidget {
                           }
                       };
                     },
+                    refresh: () => ref.refresh(
+                      chapterPagesProvider(chapterId: chapterId).future,
+                    ),
                   );
                 },
                 refresh: () => ref.refresh(chapterProviderWithIndex.future),

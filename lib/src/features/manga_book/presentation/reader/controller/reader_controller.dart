@@ -21,6 +21,16 @@ FutureOr<ChapterDto?> chapter(
     ref.watch(mangaBookRepositoryProvider).getChapter(chapterId: chapterId);
 
 @riverpod
-Future<ChapterPagesDto?> chapterPages(Ref ref, {required int chapterId}) => ref
-    .watch(mangaBookRepositoryProvider)
-    .getChapterPages(chapterId: chapterId);
+Future<ChapterPagesDto?> chapterPages(Ref ref, {required int chapterId}) async {
+  final repository = ref.watch(mangaBookRepositoryProvider);
+  final chapterPages =
+      await repository.getChapterPages(chapterId: chapterId);
+
+  if (chapterPages == null || chapterPages.pages.isNotEmpty) {
+    return chapterPages;
+  }
+
+  // The server can return an empty list while preparing uncached pages.
+  await Future<void>.delayed(const Duration(milliseconds: 500));
+  return repository.getChapterPages(chapterId: chapterId);
+}

@@ -16,6 +16,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../../../../utils/extensions/custom_extensions.dart';
 import '../../../../../../utils/misc/app_utils.dart';
+import '../../../../../../widgets/custom_circular_progress_indicator.dart';
 import '../../../../../../widgets/server_image.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_pinch_to_zoom/reader_pinch_to_zoom.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_scroll_animation_tile/reader_scroll_animation_tile.dart';
@@ -66,10 +67,13 @@ class ContinuousReaderMode extends HookConsumerWidget {
     final ItemPositionsListener positionsListener =
         useMemoized(() => ItemPositionsListener.create());
 
+    final initialIndex = chapter.isRead.ifNull()
+        ? 0
+        : (chapter.lastPageRead).getValueOnNullOrNegative();
     final ValueNotifier<int> currentIndex = useState(
-      chapter.isRead.ifNull()
+      chapterPages.pages.isEmpty
           ? 0
-          : (chapter.lastPageRead).getValueOnNullOrNegative(),
+          : initialIndex.clamp(0, chapterPages.pages.length - 1).toInt(),
     );
 
     // Passive position tracking that doesn't interfere with scrolling
@@ -138,6 +142,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
     final bool isPinchToZoomEnabled =
         ref.read(pinchToZoomProvider).ifNull(true);
 
+    if (chapterPages.pages.isEmpty) {
+      return const CenterSorayomiShimmerIndicator();
+    }
+
     return ReaderWrapper(
       scrollDirection: scrollDirection,
       chapterPages: chapterPages,
@@ -189,12 +197,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
         ScrollablePositionedList.separated(
           itemScrollController: scrollController,
           itemPositionsListener: positionsListener,
-          initialScrollIndex: chapter.isRead.ifNull()
-              ? 0
-              : chapter.lastPageRead.getValueOnNullOrNegative(),
+          initialScrollIndex: currentIndex.value,
           scrollDirection: scrollDirection,
           reverse: reverse,
-          itemCount: chapterPages.chapter.pageCount,
+          itemCount: chapterPages.pages.length,
           minCacheExtent: scrollDirection == Axis.vertical
               ? context.height * 2
               : context.width * 2,
@@ -224,7 +230,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
               ),
             );
 
-            if (index == 0 || index == chapterPages.chapter.pageCount - 1) {
+            if (index == 0 || index == chapterPages.pages.length - 1) {
               final bool reverseDirection =
                   scrollDirection == Axis.horizontal && reverse;
               final Widget separator = SizedBox(
