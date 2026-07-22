@@ -49,6 +49,16 @@
   "@authTypeBasic": {
     "description": "Radio button text for the Basic Authentication type"
   },
+  "authTypeUiLogin": "UI 登录",
+  "@authTypeUiLogin": {
+    "description": "Radio button text for UI Login authentication"
+  },
+  "login": "登录",
+  "logout": "退出登录",
+  "loggedIn": "已登录",
+  "notLoggedIn": "未登录",
+  "showPassword": "显示密码",
+  "hidePassword": "隐藏密码",
   "restoring": "正在还原",
   "@restoring": {
     "description": "Toast Text to show that the backup is restoring"

@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -14,6 +16,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/db_keys.dart';
 import '../constants/endpoints.dart';
 import '../constants/enum.dart';
+import '../features/authentication/data/auth_repository.dart';
+import '../features/authentication/presentation/auth_session_controller.dart';
 import '../features/settings/presentation/general/timeout_settings/timeout_settings_section.dart';
 import '../features/settings/presentation/server/widget/client/server_port_tile/server_port_tile.dart';
 import '../features/settings/presentation/server/widget/client/server_url_tile/server_url_tile.dart';
@@ -25,12 +29,7 @@ import '../utils/network/timeout_http_client.dart';
 
 part 'global_providers.g.dart';
 
-@riverpod
-GraphQLClient graphQlClient(Ref ref) {
-  final authType = ref.watch(authTypeKeyProvider) ?? DBKeys.authType.initial;
-  final credentials = ref.watch(credentialsProvider);
-
-  // Timeout settings
+Link _createGraphQlHttpLink(Ref ref) {
   final timeoutMs = ref.watch(serverRequestTimeoutProvider) ??
       DBKeys.serverRequestTimeout.initial as int;
   final autoRetry = ref.watch(autoRefreshOnTimeoutProvider).ifNull();
@@ -45,7 +44,7 @@ GraphQLClient graphQlClient(Ref ref) {
       ? ((timeoutMs / retryDelayMs).ceil() - 1).clamp(0, 10)
       : 0; // cap at 10 retries for safety
 
-  Link link = HttpLink(
+  return HttpLink(
     Endpoints.baseApi(
       baseUrl: ref.watch(serverUrlProvider) ?? DBKeys.serverUrl.initial,
       port: ref.watch(serverPortProvider),
@@ -61,6 +60,40 @@ GraphQLClient graphQlClient(Ref ref) {
       retryDelay: Duration(milliseconds: retryDelayMs),
     ),
   );
+}
+
+GraphQLClient _createGraphQlClient(Ref ref, Link link) => GraphQLClient(
+      link: LoggerLink().concat(link),
+      defaultPolicies: DefaultPolicies(
+        query: Policies(fetch: FetchPolicy.noCache),
+      ),
+      cache: GraphQLCache(store: ref.watch(hiveStoreProvider)),
+    );
+
+@riverpod
+GraphQLClient graphQlPublicClient(Ref ref) =>
+    _createGraphQlClient(ref, _createGraphQlHttpLink(ref));
+
+final authSessionProvider =
+    ChangeNotifierProvider<AuthSessionController>((ref) {
+  final server = Endpoints.baseApi(
+    baseUrl: ref.watch(serverUrlProvider) ?? DBKeys.serverUrl.initial,
+    port: ref.watch(serverPortProvider),
+    addPort: ref.watch(serverPortToggleProvider).ifNull(),
+    appendApiToUrl: false,
+  );
+  return AuthSessionController(
+    repository: AuthRepository(ref.watch(graphQlPublicClientProvider)),
+    preferences: ref.watch(sharedPreferencesProvider),
+    server: server,
+  );
+});
+
+@riverpod
+GraphQLClient graphQlClient(Ref ref) {
+  final authType = ref.watch(authTypeKeyProvider) ?? DBKeys.authType.initial;
+  final credentials = ref.watch(credentialsProvider);
+  Link link = _createGraphQlHttpLink(ref);
 
   // Auto retry is handled by TimeoutHttpClient retries instead of RetryLink
 
@@ -68,31 +101,51 @@ GraphQLClient graphQlClient(Ref ref) {
   if (authType == AuthType.basic && credentials.isNotBlank) {
     final AuthLink authLink = AuthLink(getToken: () => credentials);
     link = authLink.concat(link);
+  } else if (authType == AuthType.uiLogin) {
+    final authLink = AuthLink(
+      getToken: () async {
+        final token =
+            await ref.read(authSessionProvider).getValidAccessToken();
+        return token == null ? null : 'Bearer $token';
+      },
+    );
+    link = authLink.concat(link);
   }
 
-  final loggerLink = LoggerLink();
-  return GraphQLClient(
-    link: loggerLink.concat(link),
-    defaultPolicies: DefaultPolicies(
-      query: Policies(fetch: FetchPolicy.noCache),
-    ),
-    cache: GraphQLCache(store: ref.watch(hiveStoreProvider)),
-  );
+  return _createGraphQlClient(ref, link);
 }
 
 @riverpod
 GraphQLClient graphQlSubscriptionClient(Ref ref) {
   final authType = ref.watch(authTypeKeyProvider) ?? DBKeys.authType.initial;
   final credentials = ref.watch(credentialsProvider);
-  Link link = WebSocketLink(
-      Endpoints.baseApi(
-        baseUrl: ref.watch(serverUrlProvider) ?? DBKeys.serverUrl.initial,
-        port: ref.watch(serverPortProvider),
-        addPort: ref.watch(serverPortToggleProvider).ifNull(),
-        isGraphQl: true,
-        isWebsocket: true,
-      ),
-      subProtocol: GraphQLProtocol.graphqlTransportWs);
+  if (authType == AuthType.uiLogin) {
+    ref.watch(authSessionProvider.select((session) => session.accessToken));
+  }
+  final webSocketLink = WebSocketLink(
+    Endpoints.baseApi(
+      baseUrl: ref.watch(serverUrlProvider) ?? DBKeys.serverUrl.initial,
+      port: ref.watch(serverPortProvider),
+      addPort: ref.watch(serverPortToggleProvider).ifNull(),
+      isGraphQl: true,
+      isWebsocket: true,
+    ),
+    config: SocketClientConfig(
+      initialPayload: authType == AuthType.uiLogin
+          ? () async {
+              final token =
+                  await ref.read(authSessionProvider).getValidAccessToken();
+              return {
+                if (token != null) 'Authorization': token,
+              };
+            }
+          : null,
+    ),
+    subProtocol: GraphQLProtocol.graphqlTransportWs,
+  );
+  ref.onDispose(() => unawaited(webSocketLink.dispose()));
+
+  Link link = webSocketLink;
   if (authType == AuthType.basic && credentials.isNotBlank) {
     final AuthLink authLink = AuthLink(getToken: () => credentials);
     link = authLink.concat(link);

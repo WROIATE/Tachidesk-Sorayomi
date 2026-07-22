@@ -856,6 +856,18 @@ input LongFilterInput {
   notIn: [LongString!]
 }
 
+input LoginInput {
+  clientMutationId: String
+  password: String!
+  username: String!
+}
+
+type LoginPayload {
+  accessToken: String!
+  clientMutationId: String
+  refreshToken: String!
+}
+
 """A 64-bit signed integer as a String"""
 scalar LongString
 
@@ -1102,6 +1114,8 @@ type Mutation {
   fetchTrack(input: FetchTrackInput!): FetchTrackPayload!
   loginTrackerCredentials(input: LoginTrackerCredentialsInput!): LoginTrackerCredentialsPayload!
   loginTrackerOAuth(input: LoginTrackerOAuthInput!): LoginTrackerOAuthPayload!
+  login(input: LoginInput!): LoginPayload!
+  refreshToken(input: RefreshTokenInput!): RefreshTokenPayload!
   logoutTracker(input: LogoutTrackerInput!): LogoutTrackerPayload!
   trackProgress(input: TrackProgressInput!): TrackProgressPayload
   unbindTrack(input: UnbindTrackInput!): UnbindTrackPayload!
@@ -1109,6 +1123,16 @@ type Mutation {
   updateCategoryManga(input: UpdateCategoryMangaInput!): UpdateCategoryMangaPayload
   updateLibraryManga(input: UpdateLibraryMangaInput!): UpdateLibraryMangaPayload
   updateStop(input: UpdateStopInput!): UpdateStopPayload!
+}
+
+input RefreshTokenInput {
+  clientMutationId: String
+  refreshToken: String!
+}
+
+type RefreshTokenPayload {
+  accessToken: String!
+  clientMutationId: String
 }
 
 union Node = CategoryMetaType | CategoryType | ChapterMetaType | ChapterType | DownloadType | DownloadUpdate | ExtensionType | GlobalMetaType | MangaMetaType | MangaType | PartialSettingsType | SettingsType | SourceMetaType | SourceType | TrackRecordType | TrackerType
@@ -2187,4 +2211,3 @@ type WebUIUpdateStatus {
   progress: Int!
   state: UpdateState!
 }
-

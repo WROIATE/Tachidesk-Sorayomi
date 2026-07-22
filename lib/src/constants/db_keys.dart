@@ -20,6 +20,8 @@ enum DBKeys {
   isTrueBlack(false),
   authType(AuthType.none),
   basicCredentials(null),
+  uiLoginRefreshToken(null),
+  uiLoginServer(null),
   readerMode(ReaderMode.webtoon),
   readerPadding(0.0),
   readerMagnifierSize(1.0),

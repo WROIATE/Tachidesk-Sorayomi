@@ -22,6 +22,14 @@ extension CacheManagerExtension on CacheManager {
       {bool appendApiToUrl = true}) async {
     final authType = ref.read(authTypeKeyProvider);
     final basicToken = ref.read(credentialsProvider);
+    String? authorization;
+    if (authType == AuthType.basic && basicToken != null) {
+      authorization = basicToken;
+    } else if (authType == AuthType.uiLogin) {
+      final token =
+          await ref.read(authSessionProvider).getValidAccessToken();
+      if (token != null) authorization = 'Bearer $token';
+    }
     final baseApi = "${Endpoints.baseApi(
       baseUrl: ref.read(serverUrlProvider),
       port: ref.read(serverPortProvider),
@@ -31,9 +39,9 @@ extension CacheManagerExtension on CacheManager {
         "$url";
     return await getSingleFile(
       baseApi,
-      headers: authType == AuthType.basic && basicToken != null
-          ? {"Authorization": basicToken}
-          : null,
+      headers: authorization == null
+          ? null
+          : <String, String>{'Authorization': authorization},
     );
   }
 }

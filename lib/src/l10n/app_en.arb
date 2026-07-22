@@ -36,6 +36,9 @@
     "@authTypeNone": {
         "description": "Radio button text for no Authentication"
     },
+    "@authTypeUiLogin": {
+        "description": "Radio button text for UI Login authentication"
+    },
     "@authentication": {
         "description": "Section title for server authentication"
     },
@@ -950,6 +953,7 @@
     "authType": "Authentication Type",
     "authTypeBasic": "Basic Auth",
     "authTypeNone": "None",
+    "authTypeUiLogin": "UI Login",
     "authentication": "Authentication",
     "autoDownload": "Auto-download",
     "autoDownloadNewChapters": "Download new chapters",
@@ -1049,6 +1053,7 @@
     "gqlDebugLogsHint": "This includes logs with non privacy safe information",
     "help": "Help",
     "hideEmptyCategory": "Hide Empty Category",
+    "hidePassword": "Hide password",
     "inLibrary": "In library",
     "includeCategories": "Categories",
     "includeChapters": "Chapters",
@@ -1063,6 +1068,9 @@
     "languages": "Languages",
     "latest": "Latest",
     "library": "Library",
+    "loggedIn": "Logged in",
+    "login": "Login",
+    "logout": "Logout",
     "localSourceLocation": "Local source location",
     "localSourceLocationDescription": "The path to the directory on the server where local source files are saved in",
     "manga": "Manga",
@@ -1102,6 +1110,7 @@
     "noChaptersFound": "No Chapters found",
     "noDownloads": "No Downloads",
     "noMangaFound": "No Mangas Found",
+    "notLoggedIn": "Not logged in",
     "noOfChapters": "{count} Chapters",
     "noPropFound": "No {prop} Found",
     "noResultFound": "No results found",
@@ -1267,6 +1276,7 @@
     "serverUrlHintText": "Server url",
     "serverVersion": "Server version",
     "settings": "Settings",
+    "showPassword": "Show password",
     "skipUpdatingEntries": "Skip updating entries",
     "socksHost": "SOCKS Host",
     "socksPassword": "SOCKS Password",

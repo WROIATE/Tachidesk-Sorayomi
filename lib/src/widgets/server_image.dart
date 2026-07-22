@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/cached_network_image_platform_interface.dart';
 import 'package:flutter/material.dart';
@@ -50,6 +52,28 @@ class ServerImage extends HookConsumerWidget {
     // Providers
     final authType = ref.watch(authTypeKeyProvider);
     final basicToken = ref.watch(credentialsProvider);
+    final isUiLogin = authType == AuthType.uiLogin;
+    final accessToken = isUiLogin
+        ? ref.watch(
+            authSessionProvider.select((session) => session.accessToken),
+          )
+        : null;
+    final isUiLoggedIn = isUiLogin &&
+        ref.watch(
+          authSessionProvider.select((session) => session.isLoggedIn),
+        );
+
+    useEffect(
+      () {
+        if (isUiLoggedIn && accessToken == null) {
+          unawaited(
+            ref.read(authSessionProvider).refreshInBackground(),
+          );
+        }
+        return null;
+      },
+      [isUiLoggedIn, accessToken],
+    );
 
     final baseApi = "${Endpoints.baseApi(
       baseUrl: ref.watch(serverUrlProvider),
@@ -59,13 +83,17 @@ class ServerImage extends HookConsumerWidget {
     )}"
         "$imageUrl";
 
-    final Map<String, String>? httpHeaders =
-        (authType == AuthType.basic && basicToken != null)
-            ? ({"Authorization": basicToken})
-            : null;
+    final authorization = switch (authType) {
+      AuthType.basic when basicToken != null => basicToken,
+      AuthType.uiLogin when accessToken != null => 'Bearer $accessToken',
+      _ => null,
+    };
+    final httpHeaders = authorization == null
+        ? null
+        : <String, String>{'Authorization': authorization};
 
     final ImageRenderMethodForWeb renderMethod;
-    if (authType == AuthType.basic && basicToken != null) {
+    if (authorization != null) {
       renderMethod = ImageRenderMethodForWeb.HttpGet;
     } else {
       renderMethod = ImageRenderMethodForWeb.HtmlImage;
@@ -115,6 +143,13 @@ class ServerImage extends HookConsumerWidget {
           ),
         );
       }
+    }
+
+    if (isUiLoggedIn && accessToken == null) {
+      return AppUtils.wrapOn(
+        wrapper,
+        const CenterSorayomiShimmerIndicator(),
+      );
     }
 
     return CachedNetworkImage(
