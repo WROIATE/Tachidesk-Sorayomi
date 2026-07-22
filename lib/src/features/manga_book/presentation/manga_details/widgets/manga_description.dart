@@ -17,6 +17,7 @@ import '../../../../../utils/misc/toast/toast.dart';
 import '../../../../../widgets/async_buttons/async_text_button_icon.dart';
 import '../../../../../widgets/manga_cover/list/manga_cover_descriptive_list_tile.dart';
 import '../../../domain/manga/manga_model.dart';
+import 'edit_manga_category_dialog.dart';
 
 class MangaDescription extends HookConsumerWidget {
   const MangaDescription({
@@ -49,16 +50,26 @@ class MangaDescription extends HookConsumerWidget {
             children: [
               AsyncTextButtonIcon(
                 onPressed: () async {
+                  final isAddingToLibrary = !manga.inLibrary.ifNull();
                   final val = await AsyncValue.guard(() async {
-                    if (manga.inLibrary.ifNull()) {
-                      await removeMangaFromLibrary();
-                    } else {
+                    if (isAddingToLibrary) {
                       await addMangaToLibrary();
+                    } else {
+                      await removeMangaFromLibrary();
                     }
                     await refresh();
                   });
                   if (context.mounted) {
                     val.showToastOnError(ref.read(toastProvider));
+                  }
+                  if (isAddingToLibrary && !val.hasError && context.mounted) {
+                    await showDialog<void>(
+                      context: context,
+                      builder: (_) => EditMangaCategoryDialog(
+                        mangaId: manga.id,
+                        title: manga.title,
+                      ),
+                    );
                   }
                 },
                 isPrimary: manga.inLibrary.ifNull(),
