@@ -29,23 +29,22 @@ class DownloadProgressListTile extends HookConsumerWidget {
   final int index;
   final int downloadsCount;
 
-  Future toggleChapterToQueue(
+  Future<void> toggleChapterToQueue(
     Toast? toast,
     WidgetRef ref,
     bool addToDownload,
     int chapterId,
   ) async {
-    try {
-      (await AsyncValue.guard(() async {
-        final repo = ref.read(downloadsRepositoryProvider);
-        await repo.removeChapterFromDownloadQueue(chapterId);
-        if (addToDownload) {
-          await repo.addChaptersBatchToDownloadQueue([chapterId]);
-        }
-      }))
-          .showToastOnError(toast);
-    } catch (e) {
-      //
+    final result = await AsyncValue.guard(() async {
+      final repo = ref.read(downloadsRepositoryProvider);
+      await repo.removeChapterFromDownloadQueue(chapterId);
+      if (addToDownload) {
+        await repo.addChaptersBatchToDownloadQueue([chapterId]);
+      }
+    });
+    result.showToastOnError(toast);
+    if (!result.hasError) {
+      ref.invalidate(downloadStatusProvider);
     }
   }
 

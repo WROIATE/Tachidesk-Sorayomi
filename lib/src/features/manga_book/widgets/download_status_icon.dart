@@ -32,26 +32,28 @@ class DownloadStatusIcon extends HookConsumerWidget {
   final int mangaId;
   final bool isDownloaded;
 
-  Future<void> newUpdatePair(
-      WidgetRef ref, ValueSetter<bool> setIsLoading) async {
-    try {
-      setIsLoading(true);
-      await updateData();
-      setIsLoading(false);
-    } catch (e) {
-      //
-    }
+  Future<void> refreshChapter(
+    Toast? toast,
+    ValueSetter<bool> setIsLoading,
+  ) async {
+    setIsLoading(true);
+    final result = await AsyncValue.guard(updateData);
+    result.showToastOnError(toast);
+    setIsLoading(false);
   }
 
-  Future toggleChapterToQueue(
+  Future<void> toggleChapterToQueue(
     Toast? toast,
     WidgetRef ref, {
+    required ValueSetter<bool> setIsLoading,
     bool isAdd = false,
     bool isRemove = false,
     bool isError = false,
+    String? successMessage,
   }) async {
+    setIsLoading(true);
     try {
-      (await AsyncValue.guard(() async {
+      final result = await AsyncValue.guard(() async {
         final repo = ref.read(downloadsRepositoryProvider);
         if (isRemove || isError) {
           await repo.removeChapterFromDownloadQueue(chapter.id);
@@ -59,10 +61,16 @@ class DownloadStatusIcon extends HookConsumerWidget {
         if (isAdd || isError) {
           await repo.addChaptersBatchToDownloadQueue([chapter.id]);
         }
-      }))
-          .showToastOnError(toast);
-    } catch (e) {
-      //
+      });
+      result.showToastOnError(toast);
+      if (!result.hasError) {
+        ref.invalidate(downloadStatusProvider);
+        if (successMessage != null) {
+          toast?.show(successMessage, instantShow: true);
+        }
+      }
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -74,8 +82,10 @@ class DownloadStatusIcon extends HookConsumerWidget {
     final downloadUpdate = ref.watch(downloadsFromIdProvider(chapter.id));
     useEffect(() {
       if (downloadUpdate?.state == DownloadState.FINISHED) {
-        Future.microtask(
-            () => newUpdatePair(ref, (value) => isLoading.value = value));
+        Future.microtask(() => refreshChapter(
+              toast,
+              (value) => isLoading.value = value,
+            ));
       }
       return;
     }, [downloadUpdate?.state]);
@@ -89,12 +99,23 @@ class DownloadStatusIcon extends HookConsumerWidget {
       if (downloadUpdate != null) {
         if (downloadUpdate.state == DownloadState.ERROR) {
           return IconButton(
-            onPressed: () => toggleChapterToQueue(toast, ref, isError: true),
+            onPressed: () => toggleChapterToQueue(
+              toast,
+              ref,
+              setIsLoading: (value) => isLoading.value = value,
+              isError: true,
+              successMessage: context.l10n.queued,
+            ),
             icon: const Icon(Icons.replay_rounded),
           );
         } else {
           return IconButton(
-            onPressed: () => toggleChapterToQueue(toast, ref, isRemove: true),
+            onPressed: () => toggleChapterToQueue(
+              toast,
+              ref,
+              setIsLoading: (value) => isLoading.value = value,
+              isRemove: true,
+            ),
             icon: MiniCircularProgressIndicator(
               value:
                   downloadUpdate.progress == 0 ? null : downloadUpdate.progress,
@@ -113,14 +134,23 @@ class DownloadStatusIcon extends HookConsumerWidget {
                     .deleteChapters([chapter.id]),
               ))
                   .showToastOnError(toast);
-              await newUpdatePair(ref, (value) => isLoading.value = value);
+              await refreshChapter(
+                toast,
+                (value) => isLoading.value = value,
+              );
             },
           );
         } else {
           return IconButton(
             icon: const Icon(Icons.download_for_offline_rounded),
             onPressed: () {
-              toggleChapterToQueue(toast, ref, isAdd: true);
+              toggleChapterToQueue(
+                toast,
+                ref,
+                setIsLoading: (value) => isLoading.value = value,
+                isAdd: true,
+                successMessage: context.l10n.queued,
+              );
             },
           );
         }

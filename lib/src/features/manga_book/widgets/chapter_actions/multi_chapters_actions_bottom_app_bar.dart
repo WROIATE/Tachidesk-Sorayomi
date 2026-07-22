@@ -16,6 +16,7 @@ import '../../data/downloads/downloads_repository.dart';
 import '../../data/manga_book/manga_book_repository.dart';
 import '../../domain/chapter/chapter_model.dart';
 import '../../domain/chapter_batch/chapter_batch_model.dart';
+import '../../presentation/downloads/controller/downloads_controller.dart';
 import 'multi_chapters_action_icon.dart';
 
 class MultiChaptersActionsBottomAppBar extends HookConsumerWidget {
@@ -103,6 +104,12 @@ class MultiChaptersActionsBottomAppBar extends HookConsumerWidget {
                 );
                 if (context.mounted) {
                   result.showToastOnError(ref.read(toastProvider));
+                  if (!result.hasError) {
+                    ref.invalidate(downloadStatusProvider);
+                    ref
+                        .read(toastProvider)
+                        ?.show(context.l10n.queued, instantShow: true);
+                  }
                 }
                 await refresh(true);
               },

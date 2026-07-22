@@ -22,19 +22,33 @@ class DownloadsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    Future<void> refreshDownloads() async {
+      ref.invalidate(downloadUpdatesProvider);
+      final _ = await ref.refresh(downloadStatusProvider.future);
+    }
+
     final toast = ref.watch(toastProvider);
     final downloadsChapterIds = ref.watch(downloadsChapterIdsProvider);
     final downloadsGlobalStatus = ref.watch(downloaderStateProvider);
     final showDownloadsFAB = ref.watch(showDownloadsFABProvider);
+    if (TickerMode.valuesOf(context).enabled) {
+      ref.watch(downloadStatusWatchdogProvider);
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.downloads),
         actions: [
           if ((downloadsChapterIds).isNotBlank)
             IconButton(
-              onPressed: () => AsyncValue.guard(
-                ref.read(downloadsRepositoryProvider).clearDownloads,
-              ),
+              onPressed: () async {
+                final result = await AsyncValue.guard(
+                  ref.read(downloadsRepositoryProvider).clearDownloads,
+                );
+                result.showToastOnError(toast);
+                if (!result.hasError) {
+                  ref.invalidate(downloadStatusProvider);
+                }
+              },
               icon: const Icon(Icons.delete_sweep_rounded),
             ),
         ],
@@ -55,7 +69,7 @@ class DownloadsScreen extends ConsumerWidget {
             final downloadsCount =
                 (downloadsChapterIds.length).getValueOnNullOrNegative();
             return RefreshIndicator(
-              onRefresh: () => ref.refresh(downloadStatusProvider.future),
+              onRefresh: refreshDownloads,
               child: ListView.builder(
                 itemExtent: 104,
                 itemBuilder: (context, index) {
@@ -75,6 +89,10 @@ class DownloadsScreen extends ConsumerWidget {
           }
         },
         showGenericError: true,
+        refresh: () {
+          ref.invalidate(downloadUpdatesProvider);
+          ref.invalidate(downloadStatusProvider);
+        },
       ),
     );
   }

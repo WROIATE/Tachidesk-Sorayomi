@@ -104,8 +104,7 @@ GraphQLClient graphQlClient(Ref ref) {
   } else if (authType == AuthType.uiLogin) {
     final authLink = AuthLink(
       getToken: () async {
-        final token =
-            await ref.read(authSessionProvider).getValidAccessToken();
+        final token = await ref.read(authSessionProvider).getValidAccessToken();
         return token == null ? null : 'Bearer $token';
       },
     );
@@ -136,7 +135,7 @@ GraphQLClient graphQlSubscriptionClient(Ref ref) {
               final token =
                   await ref.read(authSessionProvider).getValidAccessToken();
               return {
-                if (token != null) 'Authorization': token,
+                if (token != null) 'Authorization': 'Bearer $token',
               };
             }
           : null,

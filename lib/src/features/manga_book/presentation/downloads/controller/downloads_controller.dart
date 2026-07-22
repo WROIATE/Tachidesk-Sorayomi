@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -20,6 +22,11 @@ Future<DownloadStatusDto?> downloadStatus(Ref ref) =>
 @riverpod
 class DownloadsMap extends _$DownloadsMap {
   void updateDownloadStatus(Fragment$DownloadUpdatesDto? downloadStatusDto) {
+    if (downloadStatusDto?.omittedUpdates == true) {
+      ref.invalidate(downloadStatusProvider);
+      return;
+    }
+
     final currState = {...?stateOrNull};
     for (final element in [...?downloadStatusDto?.initial]) {
       currState[element.chapter.id] = element;
@@ -84,15 +91,62 @@ List<int> downloadsChapterIds(Ref ref) {
 }
 
 @riverpod
+void downloadStatusWatchdog(Ref ref) {
+  final downloads = ref.watch(downloadsMapProvider);
+  final downloaderState = ref.watch(downloaderStateProvider).valueOrNull;
+  final hasActiveDownloads = downloads.values.any(
+    (download) =>
+        download.state == DownloadState.QUEUED ||
+        download.state == DownloadState.DOWNLOADING,
+  );
+
+  if (downloaderState != DownloaderState.STARTED || !hasActiveDownloads) {
+    return;
+  }
+
+  final timer = Timer(const Duration(seconds: 2), () {
+    if (!ref.read(downloadStatusProvider).isLoading) {
+      ref.invalidate(downloadStatusProvider);
+    }
+    if (ref.read(downloadUpdatesProvider).hasError) {
+      ref.invalidate(downloadUpdatesProvider);
+    }
+  });
+  ref.onDispose(timer.cancel);
+}
+
+@riverpod
 AsyncValue<DownloaderState?> downloaderState(Ref ref) {
-  return ref.watch(downloadUpdatesProvider
-      .select((value) => value.copyWithData((data) => data?.state)));
+  final downloadUpdates = ref.watch(downloadUpdatesProvider);
+  final downloadStatus = ref.watch(downloadStatusProvider);
+  final subscriptionState = downloadUpdates.valueOrNull?.state;
+  final snapshotState = downloadStatus.valueOrNull?.state;
+
+  if (subscriptionState != null) return AsyncData(subscriptionState);
+  if (snapshotState != null) return AsyncData(snapshotState);
+  if (downloadUpdates.hasValue || downloadStatus.hasValue) {
+    return const AsyncData(null);
+  }
+  if (downloadStatus.hasError) {
+    return AsyncError(
+      downloadStatus.error!,
+      downloadStatus.stackTrace ?? StackTrace.current,
+    );
+  }
+  if (downloadUpdates.hasError) {
+    return AsyncError(
+      downloadUpdates.error!,
+      downloadUpdates.stackTrace ?? StackTrace.current,
+    );
+  }
+  return const AsyncLoading();
 }
 
 @riverpod
 bool showDownloadsFAB(Ref ref) {
   final downloads = ref.watch(downloadUpdatesProvider);
-  return downloads.valueOrNull?.state == DownloaderState.STARTED ||
+  final downloaderState = ref.watch(downloaderStateProvider).valueOrNull;
+  return downloaderState == DownloaderState.STARTED ||
       (downloads.valueOrNull?.updates).isNotBlank &&
           downloads.valueOrNull!.updates.any(
             (element) =>
