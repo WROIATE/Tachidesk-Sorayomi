@@ -21,6 +21,7 @@ import '../../domain/chapter_batch/chapter_batch_model.dart';
 import '../../domain/manga/manga_model.dart';
 import '../manga_details/controller/manga_details_controller.dart';
 import 'controller/reader_controller.dart';
+import 'utils/reader_initial_page.dart';
 import 'widgets/reader_mode/continuous_reader_mode.dart';
 import 'widgets/reader_mode/single_page_reader_mode.dart';
 
@@ -29,10 +30,12 @@ class ReaderScreen extends HookConsumerWidget {
     super.key,
     required this.mangaId,
     required this.chapterId,
+    this.startAtEnd = false,
     this.showReaderLayoutAnimation = false,
   });
   final int mangaId;
   final int chapterId;
+  final bool startAtEnd;
   final bool showReaderLayoutAnimation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,6 +144,12 @@ class ReaderScreen extends HookConsumerWidget {
                       if (chapterPagesData == null) {
                         return const SizedBox.shrink();
                       }
+                      final initialPage = resolveInitialReaderPage(
+                        startAtEnd: startAtEnd,
+                        isRead: chapterData.isRead,
+                        lastPageRead: chapterData.lastPageRead,
+                        pageCount: chapterPagesData.pages.length,
+                      );
                       return switch (
                           data.metaData.readerMode ?? defaultReaderMode) {
                         ReaderMode.singleVertical => SinglePageReaderMode(
@@ -151,6 +160,7 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.singleHorizontalRTL => SinglePageReaderMode(
                             chapter: chapterData,
@@ -160,6 +170,7 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.continuousHorizontalLTR =>
                           ContinuousReaderMode(
@@ -170,6 +181,7 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.continuousHorizontalRTL =>
                           ContinuousReaderMode(
@@ -181,12 +193,14 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.singleHorizontalLTR => SinglePageReaderMode(
                             chapter: chapterData,
                             manga: data,
                             onPageChanged: onPageChanged,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.continuousVertical => ContinuousReaderMode(
                             chapter: chapterData,
@@ -196,6 +210,7 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.webtoon => ContinuousReaderMode(
                             chapter: chapterData,
@@ -204,6 +219,7 @@ class ReaderScreen extends HookConsumerWidget {
                             showReaderLayoutAnimation:
                                 showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
+                            initialPage: initialPage,
                           ),
                         ReaderMode.defaultReader || null => switch (
                               defaultReaderMode ?? ReaderMode.webtoon) {
@@ -213,6 +229,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 manga: data,
                                 onPageChanged: onPageChanged,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.singleHorizontalRTL =>
                               SinglePageReaderMode(
@@ -223,6 +240,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.singleVertical => SinglePageReaderMode(
                                 chapter: chapterData,
@@ -232,6 +250,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.continuousHorizontalLTR =>
                               ContinuousReaderMode(
@@ -242,6 +261,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.continuousHorizontalRTL =>
                               ContinuousReaderMode(
@@ -253,6 +273,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.continuousVertical =>
                               ContinuousReaderMode(
@@ -263,6 +284,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                             ReaderMode.webtoon || _ => ContinuousReaderMode(
                                 chapter: chapterData,
@@ -271,6 +293,7 @@ class ReaderScreen extends HookConsumerWidget {
                                 showReaderLayoutAnimation:
                                     showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
+                                initialPage: initialPage,
                               ),
                           }
                       };

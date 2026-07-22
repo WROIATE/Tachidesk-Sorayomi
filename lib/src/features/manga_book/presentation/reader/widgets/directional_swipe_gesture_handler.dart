@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
@@ -55,18 +57,53 @@ class DirectionalSwipeGestureHandler extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activePointers = useRef(<int>{});
+    final hadMultiplePointers = useRef(false);
+    void clearMultiTouchAfterGesture() {
+      scheduleMicrotask(() {
+        if (activePointers.value.isEmpty) {
+          hadMultiplePointers.value = false;
+        }
+      });
+    }
+
     final bool useAdvancedGestures =
         lastPageSwipeEnabled && !readerSwipeChapterToggle;
 
-    if (useAdvancedGestures) {
-      return _buildAdvancedGestureHandler(context);
-    } else {
-      return _buildSimpleGestureHandler(context);
-    }
+    final gestureHandler = useAdvancedGestures
+        ? _buildAdvancedGestureHandler(
+            context,
+            () => hadMultiplePointers.value,
+          )
+        : _buildSimpleGestureHandler(
+            context,
+            () => hadMultiplePointers.value,
+          );
+
+    return Listener(
+      onPointerDown: (event) {
+        activePointers.value.add(event.pointer);
+        if (activePointers.value.length > 1) {
+          hadMultiplePointers.value = true;
+        }
+      },
+      onPointerUp: (event) {
+        activePointers.value.remove(event.pointer);
+        clearMultiTouchAfterGesture();
+      },
+      onPointerCancel: (event) {
+        activePointers.value.remove(event.pointer);
+        clearMultiTouchAfterGesture();
+      },
+      child: gestureHandler,
+    );
   }
 
   /// Advanced gesture handler using RawGestureDetector for proper arena competition
-  Widget _buildAdvancedGestureHandler(BuildContext context) {
+  Widget _buildAdvancedGestureHandler(
+    BuildContext context,
+    bool Function() hadMultiplePointers,
+  ) {
     return GestureDetector(
       onLongPressStart: onLongPressStart,
       onLongPressEnd: onLongPressEnd,
@@ -74,6 +111,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onTap: onTap,
       behavior: HitTestBehavior.translucent,
       onPanEnd: (details) {
+        if (hadMultiplePointers()) return;
         final swipeDirection = LastPageSwipeUtils.detectSwipeDirection(details);
 
         if (swipeDirection != null) {
@@ -89,7 +127,10 @@ class DirectionalSwipeGestureHandler extends HookWidget {
   }
 
   /// Simple gesture handler as fallback
-  Widget _buildSimpleGestureHandler(BuildContext context) {
+  Widget _buildSimpleGestureHandler(
+    BuildContext context,
+    bool Function() hadMultiplePointers,
+  ) {
     return GestureDetector(
       onLongPressStart: onLongPressStart,
       onLongPressEnd: onLongPressEnd,
@@ -97,6 +138,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onTap: onTap,
       behavior: HitTestBehavior.translucent,
       onHorizontalDragEnd: (details) {
+        if (hadMultiplePointers()) return;
         _handleSwipeGesture(
           context: context,
           details: details,
@@ -104,6 +146,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
         );
       },
       onVerticalDragEnd: (details) {
+        if (hadMultiplePointers()) return;
         _handleSwipeGesture(
           context: context,
           details: details,
@@ -257,6 +300,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
           chapterId: prevNextChapterPair!.second!.id,
           toPrev: true,
           transVertical: scrollDirection != Axis.vertical,
+          startAtEnd: true,
         ).pushReplacement(context);
       } catch (e) {
         onPreviousPage();

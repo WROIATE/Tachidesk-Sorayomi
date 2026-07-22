@@ -15,7 +15,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../../../../utils/extensions/custom_extensions.dart';
-import '../../../../../../utils/misc/app_utils.dart';
 import '../../../../../../widgets/custom_circular_progress_indicator.dart';
 import '../../../../../../widgets/server_image.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_pinch_to_zoom/reader_pinch_to_zoom.dart';
@@ -24,6 +23,7 @@ import '../../../../domain/chapter/chapter_model.dart';
 import '../../../../domain/chapter_page/chapter_page_model.dart';
 import '../../../../domain/manga/manga_model.dart';
 import '../chapter_separator.dart';
+import '../reader_interactive_viewer.dart';
 import '../reader_wrapper.dart';
 
 /// Configuration constants for improved scroll behavior
@@ -44,6 +44,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
     required this.manga,
     required this.chapter,
     required this.chapterPages,
+    required this.initialPage,
     this.showSeparator = false,
     this.onPageChanged,
     this.scrollDirection = Axis.vertical,
@@ -59,6 +60,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
   final bool reverse;
   final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
+  final int initialPage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,14 +69,12 @@ class ContinuousReaderMode extends HookConsumerWidget {
     final ItemPositionsListener positionsListener =
         useMemoized(() => ItemPositionsListener.create());
 
-    final initialIndex = chapter.isRead.ifNull()
-        ? 0
-        : (chapter.lastPageRead).getValueOnNullOrNegative();
     final ValueNotifier<int> currentIndex = useState(
       chapterPages.pages.isEmpty
           ? 0
-          : initialIndex.clamp(0, chapterPages.pages.length - 1).toInt(),
+          : initialPage.clamp(0, chapterPages.pages.length - 1),
     );
+    final ValueNotifier<bool> isZoomInteractionLocked = useState(false);
 
     // Passive position tracking that doesn't interfere with scrolling
     final ObjectRef<Timer?> positionUpdateTimer = useRef<Timer?>(null);
@@ -139,8 +139,9 @@ class ContinuousReaderMode extends HookConsumerWidget {
 
     final bool isAnimationEnabled =
         ref.read(readerScrollAnimationProvider).ifNull(true);
-    final bool isPinchToZoomEnabled =
-        ref.read(pinchToZoomProvider).ifNull(true);
+    final bool isPinchToZoomEnabled = !kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        ref.watch(pinchToZoomProvider).ifNull(true);
 
     if (chapterPages.pages.isEmpty) {
       return const CenterSorayomiShimmerIndicator();
@@ -188,18 +189,20 @@ class ContinuousReaderMode extends HookConsumerWidget {
         isAnimationEnabled,
         isNext: true,
       ),
-      child: AppUtils.wrapOn(
-        !kIsWeb &&
-                (Platform.isAndroid || Platform.isIOS) &&
-                isPinchToZoomEnabled
-            ? (Widget child) => InteractiveViewer(maxScale: 5, child: child)
-            : null,
-        ScrollablePositionedList.separated(
+      child: ReaderInteractiveViewer(
+        enabled: isPinchToZoomEnabled,
+        resetToken: currentIndex.value,
+        onInteractionLockChanged: (locked) =>
+            isZoomInteractionLocked.value = locked,
+        child: ScrollablePositionedList.separated(
           itemScrollController: scrollController,
           itemPositionsListener: positionsListener,
           initialScrollIndex: currentIndex.value,
           scrollDirection: scrollDirection,
           reverse: reverse,
+          physics: isZoomInteractionLocked.value
+              ? const NeverScrollableScrollPhysics()
+              : null,
           itemCount: chapterPages.pages.length,
           minCacheExtent: scrollDirection == Axis.vertical
               ? context.height * 2

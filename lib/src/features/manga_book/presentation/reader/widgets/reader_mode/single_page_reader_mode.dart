@@ -15,13 +15,14 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../../../../constants/app_constants.dart';
 import '../../../../../../utils/extensions/cache_manager_extensions.dart';
 import '../../../../../../utils/extensions/custom_extensions.dart';
-import '../../../../../../utils/misc/app_utils.dart';
 import '../../../../../../widgets/custom_circular_progress_indicator.dart';
 import '../../../../../../widgets/server_image.dart';
+import '../../../../../settings/presentation/reader/widgets/reader_pinch_to_zoom/reader_pinch_to_zoom.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_scroll_animation_tile/reader_scroll_animation_tile.dart';
 import '../../../../domain/chapter/chapter_model.dart';
 import '../../../../domain/chapter_page/chapter_page_model.dart';
 import '../../../../domain/manga/manga_model.dart';
+import '../reader_interactive_viewer.dart';
 import '../reader_wrapper.dart';
 
 class SinglePageReaderMode extends HookConsumerWidget {
@@ -30,6 +31,7 @@ class SinglePageReaderMode extends HookConsumerWidget {
     required this.manga,
     required this.chapter,
     required this.chapterPages,
+    required this.initialPage,
     this.onPageChanged,
     this.reverse = false,
     this.scrollDirection = Axis.horizontal,
@@ -43,15 +45,15 @@ class SinglePageReaderMode extends HookConsumerWidget {
   final Axis scrollDirection;
   final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
+  final int initialPage;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cacheManager = useMemoized(() => DefaultCacheManager());
     final scrollController = usePageController(
-      initialPage: chapter.isRead.ifNull()
-          ? 0
-          : chapter.lastPageRead.getValueOnNullOrNegative(),
+      initialPage: initialPage,
     );
     final currentIndex = useState(scrollController.initialPage);
+    final isZoomInteractionLocked = useState(false);
 
     useEffect(() {
       if (onPageChanged != null) onPageChanged!(currentIndex.value);
@@ -93,6 +95,9 @@ class SinglePageReaderMode extends HookConsumerWidget {
     }, [scrollController]);
     final isAnimationEnabled =
         ref.read(readerScrollAnimationProvider).ifNull(true);
+    final isPinchToZoomEnabled = !kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        ref.watch(pinchToZoomProvider).ifNull(true);
     return ReaderWrapper(
       scrollDirection: scrollDirection,
       chapter: chapter,
@@ -110,47 +115,51 @@ class SinglePageReaderMode extends HookConsumerWidget {
         curve: kCurve,
       ),
       pageController: scrollController,
-      child: PageView.builder(
-        scrollDirection: scrollDirection,
-        reverse: reverse,
-        controller: scrollController,
-        allowImplicitScrolling: true,
-        physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics()),
-        itemBuilder: (BuildContext context, int index) {
-          // Show loading indicator if no pages are available yet
-          if (chapterPages.pages.isEmpty) {
-            return const Center(
-              child: CenterSorayomiShimmerIndicator(),
-            );
-          }
+      child: ReaderInteractiveViewer(
+        enabled: isPinchToZoomEnabled,
+        resetToken: currentIndex.value,
+        onInteractionLockChanged: (locked) =>
+            isZoomInteractionLocked.value = locked,
+        child: PageView.builder(
+          scrollDirection: scrollDirection,
+          reverse: reverse,
+          controller: scrollController,
+          allowImplicitScrolling: true,
+          physics: isZoomInteractionLocked.value
+              ? const NeverScrollableScrollPhysics()
+              : const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+          itemBuilder: (BuildContext context, int index) {
+            // Show loading indicator if no pages are available yet
+            if (chapterPages.pages.isEmpty) {
+              return const Center(
+                child: CenterSorayomiShimmerIndicator(),
+              );
+            }
 
-          // Add bounds checking to prevent accessing non-existent pages
-          if (index >= chapterPages.pages.length) {
-            return const Center(
-              child: CenterSorayomiShimmerIndicator(),
-            );
-          }
+            // Add bounds checking to prevent accessing non-existent pages
+            if (index >= chapterPages.pages.length) {
+              return const Center(
+                child: CenterSorayomiShimmerIndicator(),
+              );
+            }
 
-          final image = ServerImage(
-            showReloadButton: true,
-            fit: BoxFit.contain,
-            size: Size.fromHeight(context.height),
-            appendApiToUrl: false,
-            imageUrl: chapterPages.pages[index],
-            progressIndicatorBuilder: (context, url, downloadProgress) =>
-                CenterSorayomiShimmerIndicator(
-              value: downloadProgress.progress,
-            ),
-          );
-          return AppUtils.wrapOn(
-            !kIsWeb && (Platform.isAndroid || Platform.isIOS)
-                ? (child) => InteractiveViewer(maxScale: 5, child: child)
-                : null,
-            image,
-          );
-        },
-        itemCount: chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+            final image = ServerImage(
+              showReloadButton: true,
+              fit: BoxFit.contain,
+              size: Size.fromHeight(context.height),
+              appendApiToUrl: false,
+              imageUrl: chapterPages.pages[index],
+              progressIndicatorBuilder: (context, url, downloadProgress) =>
+                  CenterSorayomiShimmerIndicator(
+                value: downloadProgress.progress,
+              ),
+            );
+            return image;
+          },
+          itemCount: chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+        ),
       ),
     );
   }

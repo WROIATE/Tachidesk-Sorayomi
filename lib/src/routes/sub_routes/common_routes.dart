@@ -24,12 +24,14 @@ class ReaderRoute extends GoRouteData {
     required this.chapterId,
     this.transVertical,
     this.toPrev,
+    this.startAtEnd = false,
     this.showReaderLayoutAnimation = false,
   });
   final int mangaId;
   final int chapterId;
   final bool? transVertical;
   final bool? toPrev;
+  final bool startAtEnd;
   final bool showReaderLayoutAnimation;
 
   static final $parentNavigatorKey = _quickOpenNavigatorKey;
@@ -41,6 +43,7 @@ class ReaderRoute extends GoRouteData {
       child: ReaderScreen(
         mangaId: mangaId,
         chapterId: chapterId,
+        startAtEnd: startAtEnd,
         showReaderLayoutAnimation: showReaderLayoutAnimation,
       ),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {

@@ -261,6 +261,7 @@ class ReaderWrapper extends HookConsumerWidget {
             chapterId: nextPrevChapterPair!.second!.id,
             toPrev: true,
             transVertical: scrollDirection != Axis.vertical,
+            startAtEnd: true,
           ).pushReplacement(context);
           return;
         }
@@ -306,6 +307,7 @@ class ReaderWrapper extends HookConsumerWidget {
           chapterId: nextPrevChapterPair!.second!.id,
           toPrev: toPrev,
           transVertical: transVertical,
+          startAtEnd: true,
         ).pushReplacement(context);
       }
     }, [nextPrevChapterPair, manga.id, resolvedReaderMode]);
@@ -445,6 +447,7 @@ class ReaderWrapper extends HookConsumerWidget {
                                       toPrev: true,
                                       transVertical:
                                           scrollDirection != Axis.vertical,
+                                      startAtEnd: true,
                                     ).pushReplacement(context)
                                 : null,
                             icon: const Icon(
@@ -540,6 +543,7 @@ class ReaderWrapper extends HookConsumerWidget {
                           chapterId: nextPrevChapterPair.second!.id,
                           toPrev: true,
                           transVertical: scrollDirection != Axis.vertical,
+                          startAtEnd: true,
                         ).pushReplacement(context)
                       : enhancedOnPrevious();
                   return null;
