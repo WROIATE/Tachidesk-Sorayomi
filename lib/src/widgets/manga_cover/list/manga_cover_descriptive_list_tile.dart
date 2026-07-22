@@ -27,14 +27,22 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
     this.showBadges = true,
     this.showCountBadges = true,
   });
+  static final _authorSeparator = RegExp(r'[,，]');
+
   final MangaDto manga;
   final bool showBadges;
   final bool showCountBadges;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
-  final ValueChanged<String?>? onTitleClicked;
+  final ValueChanged<String>? onTitleClicked;
   @override
   Widget build(BuildContext context) {
+    final authors = (manga.author ?? '')
+        .split(_authorSeparator)
+        .map((author) => author.trim())
+        .where((author) => author.isNotEmpty)
+        .toList(growable: false);
+
     return InkWell(
       onTap: onPressed,
       onLongPress: onLongPress,
@@ -74,16 +82,45 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
                       ),
                     ),
                     Gap(8),
-                    InkWell(
-                      onTap: onTitleClicked != null && manga.author.isNotBlank
-                          ? () => onTitleClicked!(manga.author)
-                          : null,
-                      child: Text(
-                        manga.author ?? context.l10n.unknownAuthor,
+                    if (onTitleClicked == null)
+                      Text(
+                        authors.isEmpty
+                            ? context.l10n.unknownAuthor
+                            : authors.join(', '),
                         overflow: TextOverflow.ellipsis,
                         style: context.textTheme.bodyMedium,
+                      )
+                    else if (authors.isEmpty)
+                      Text(
+                        context.l10n.unknownAuthor,
+                        style: context.textTheme.bodyMedium,
+                      )
+                    else
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (var index = 0;
+                                index < authors.length;
+                                index++) ...[
+                              if (index > 0)
+                                Text(
+                                  ', ',
+                                  style: context.textTheme.bodyMedium,
+                                ),
+                              InkWell(
+                                onTap: onTitleClicked == null
+                                    ? null
+                                    : () => onTitleClicked!(authors[index]),
+                                child: Text(
+                                  authors[index],
+                                  style: context.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
                     Gap(8),
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,

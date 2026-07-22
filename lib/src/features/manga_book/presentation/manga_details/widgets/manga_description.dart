@@ -34,6 +34,11 @@ class MangaDescription extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExpanded = useState(context.isTablet);
+    final genres = manga.genre
+        .map((genre) => genre.trim())
+        .where((genre) => genre.isNotEmpty)
+        .toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -143,37 +148,45 @@ class MangaDescription extends HookConsumerWidget {
               ],
             ),
           ),
-        if (isExpanded.value)
-          Padding(
-            padding: KEdgeInsets.h16.size,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              // alignment: WrapAlignment.spaceBetween,
-              children: [
-                ...manga.genre.map<Widget>(
-                  (e) => Chip(label: Text(e)),
-                )
-              ],
-            ),
-          )
-        else
-          Padding(
-            padding: KEdgeInsets.h16.size,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+        if (genres.isNotEmpty)
+          if (isExpanded.value)
+            Padding(
+              padding: KEdgeInsets.h16.size,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  ...manga.genre.map<Widget>(
-                    (e) => Padding(
-                      padding: KEdgeInsets.h4.size,
-                      child: Chip(label: Text(e)),
+                  ...genres.map<Widget>(
+                    (genre) => ActionChip(
+                      label: Text(genre),
+                      onPressed: () =>
+                          GlobalSearchRoute(query: genre).push(context),
                     ),
-                  )
+                  ),
                 ],
               ),
+            )
+          else
+            Padding(
+              padding: KEdgeInsets.h16.size,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ...genres.map<Widget>(
+                      (genre) => Padding(
+                        padding: KEdgeInsets.h4.size,
+                        child: ActionChip(
+                          label: Text(genre),
+                          onPressed: () =>
+                              GlobalSearchRoute(query: genre).push(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
       ],
     );
   }
