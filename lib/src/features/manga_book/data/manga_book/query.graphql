@@ -90,8 +90,16 @@ mutation SetMangaMeta($input: SetMangaMetaInput!) {
   }
 }
 
+mutation GetMangaAndChapters($input: FetchMangaAndChaptersInput!) {
+  fetchMangaAndChapters(input: $input) {
+    chapters {
+      ...ChapterDto
+    }
+  }
+}
+
 mutation GetChaptersByMangaId($input: FetchChaptersInput!) {
-  fetchChapters(input:  $input) {
+  fetchChapters(input: $input) {
     chapters {
       ...ChapterDto
     }

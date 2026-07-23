@@ -26,6 +26,7 @@ class SmallScreenMangaDetails extends ConsumerWidget {
     required this.onRefresh,
     required this.onDescriptionRefresh,
     required this.onListRefresh,
+    required this.bottomContentPadding,
   });
   final int mangaId;
   final MangaDto manga;
@@ -34,6 +35,7 @@ class SmallScreenMangaDetails extends ConsumerWidget {
   final AsyncValue<List<ChapterDto>?> chapterList;
   final AsyncValueSetter<bool> onListRefresh;
   final AsyncValueSetter<bool> onDescriptionRefresh;
+  final double bottomContentPadding;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredChapterList = chapterList.valueOrNull;
@@ -106,7 +108,9 @@ class SmallScreenMangaDetails extends ConsumerWidget {
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: ListTile()),
+          SliverToBoxAdapter(
+            child: SizedBox(height: bottomContentPadding),
+          ),
         ],
       ),
     );

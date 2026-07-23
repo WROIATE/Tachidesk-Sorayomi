@@ -45,6 +45,8 @@ class MangaDescription extends HookConsumerWidget {
         MangaCoverDescriptiveListTile(
           manga: manga,
           showBadges: false,
+          showFullTitle: true,
+          showArtist: true,
           onTitleClicked: (query) =>
               GlobalSearchRoute(query: query).push(context),
         ),
@@ -68,7 +70,6 @@ class MangaDescription extends HookConsumerWidget {
                         useRootNavigator: false,
                         builder: (_) => EditMangaCategoryDialog(
                           mangaId: manga.id,
-                          title: manga.title,
                         ),
                       );
                     }

@@ -10,6 +10,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../../../constants/app_sizes.dart';
 import '../../../../../utils/extensions/custom_extensions.dart';
 import '../../../../../widgets/async_buttons/async_checkbox_list_tile.dart';
+import '../../../../../widgets/custom_circular_progress_indicator.dart';
 import '../../../../../widgets/popup_widgets/pop_button.dart';
 import '../../../../library/domain/category/category_model.dart';
 import '../../../../library/presentation/category/controller/edit_category_controller.dart';
@@ -20,33 +21,23 @@ class EditMangaCategoryDialog extends HookConsumerWidget {
   const EditMangaCategoryDialog({
     super.key,
     required this.mangaId,
-    this.title,
   });
   final int mangaId;
-  final String? title;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoryList = ref.watch(categoryControllerProvider);
     final provider = mangaCategoryListProvider(mangaId);
     final mangaCategoryList = ref.watch(provider);
     return AlertDialog(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(context.l10n.editCategory),
-          if (title.isNotBlank)
-            Text(
-              title!,
-              style: context.textTheme.bodySmall,
-              overflow: TextOverflow.ellipsis,
-            )
-        ],
-      ),
+      title: Text(context.l10n.editCategory),
       contentPadding: KEdgeInsets.h8v16.size,
       actions: [PopButton(popText: context.l10n.close)],
       content: categoryList.showUiWhenData(
         context,
         (data) {
+          final categoryCount =
+              data?.where((category) => category.id != 0).length ?? 0;
           return ConstrainedBox(
             constraints: BoxConstraints(maxHeight: context.height * .7),
             child: data.isBlank || (data.isSingletonList && data!.first.id == 0)
@@ -85,11 +76,37 @@ class EditMangaCategoryDialog extends HookConsumerWidget {
                               ),
                         ],
                       ),
+                      loading: _CategoryDialogLoadingIndicator(
+                        itemCount: categoryCount,
+                      ),
                     ),
                   ),
           );
         },
+        loading: const _CategoryDialogLoadingIndicator(),
       ),
+    );
+  }
+}
+
+class _CategoryDialogLoadingIndicator extends StatelessWidget {
+  const _CategoryDialogLoadingIndicator({this.itemCount = 1});
+
+  static const _categoryTileHeight = 56.0;
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final desiredHeight = (itemCount < 1 ? 1 : itemCount) * _categoryTileHeight;
+    final height = desiredHeight
+        .clamp(_categoryTileHeight, context.height * .7)
+        .toDouble();
+
+    return SizedBox(
+      key: const ValueKey('manga-category-dialog-loading'),
+      height: height,
+      child: const Center(child: MiniCircularProgressIndicator()),
     );
   }
 }

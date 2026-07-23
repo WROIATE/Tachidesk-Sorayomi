@@ -35,6 +35,7 @@ class MangaChapterList extends _$MangaChapterList {
   Future<List<ChapterDto>?> build({required int mangaId}) async {
     final result =
         await ref.watch(mangaBookRepositoryProvider).getChapterList(mangaId);
+    ref.invalidate(mangaWithIdProvider(mangaId: mangaId));
     ref.keepAlive();
     return result;
   }
@@ -46,6 +47,7 @@ class MangaChapterList extends _$MangaChapterList {
     if (result.hasError) {
       state = result.copyWithPrevious(state);
     } else {
+      ref.invalidate(mangaWithIdProvider(mangaId: mangaId));
       state = result;
     }
   }

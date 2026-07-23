@@ -29,6 +29,19 @@ import 'widgets/edit_manga_category_dialog.dart';
 import 'widgets/manga_chapter_organizer.dart';
 import 'widgets/small_screen_manga_details.dart';
 
+const _floatingActionButtonHeight = 56.0;
+const _minimumChapterListBottomPadding = 56.0;
+
+double calculateChapterListBottomPadding({
+  required bool hasFloatingActionButton,
+  required double bottomSafeArea,
+}) =>
+    hasFloatingActionButton
+        ? bottomSafeArea +
+            _floatingActionButtonHeight +
+            kFloatingActionButtonMargin
+        : max(bottomSafeArea, _minimumChapterListBottomPadding);
+
 class MangaDetailsScreen extends HookConsumerWidget {
   const MangaDetailsScreen({super.key, required this.mangaId, this.categoryId});
   final int mangaId;
@@ -48,6 +61,12 @@ class MangaDetailsScreen extends HookConsumerWidget {
     );
 
     final selectedChapters = useState<Map<int, ChapterDto>>({});
+    final hasFloatingActionButton =
+        firstUnreadChapter != null && selectedChapters.value.isEmpty;
+    final chapterListBottomPadding = calculateChapterListBottomPadding(
+      hasFloatingActionButton: hasFloatingActionButton,
+      bottomSafeArea: MediaQuery.viewPaddingOf(context).bottom,
+    );
 
     // Refresh manga
     final mangaRefresh = useCallback(([bool onlineFetch = false]) async {
@@ -148,7 +167,6 @@ class MangaDetailsScreen extends HookConsumerWidget {
                   ],
                 )
               : AppBar(
-                  title: Text(data?.title ?? context.l10n.manga),
                   actions: [
                     if (context.isTablet) ...[
                       IconButton(
@@ -259,25 +277,24 @@ class MangaDetailsScreen extends HookConsumerWidget {
                   chapterList: filteredChapterList.value,
                 )
               : null,
-          floatingActionButton:
-              firstUnreadChapter != null && selectedChapters.value.isEmpty
-                  ? FloatingActionButton.extended(
-                      isExtended: context.isTablet,
-                      label: Text(
-                        data?.lastReadChapter?.index != null
-                            ? context.l10n.resume
-                            : context.l10n.start,
-                      ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      onPressed: () {
-                        ReaderRoute(
-                          mangaId: firstUnreadChapter.mangaId,
-                          chapterId: firstUnreadChapter.id,
-                          showReaderLayoutAnimation: true,
-                        ).push(context);
-                      },
-                    )
-                  : null,
+          floatingActionButton: hasFloatingActionButton
+              ? FloatingActionButton.extended(
+                  isExtended: context.isTablet,
+                  label: Text(
+                    data?.lastReadChapter?.index != null
+                        ? context.l10n.resume
+                        : context.l10n.start,
+                  ),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  onPressed: () {
+                    ReaderRoute(
+                      mangaId: firstUnreadChapter.mangaId,
+                      chapterId: firstUnreadChapter.id,
+                      showReaderLayoutAnimation: true,
+                    ).push(context);
+                  },
+                )
+              : null,
           body: data != null
               ? context.isTablet
                   ? BigScreenMangaDetails(
@@ -288,6 +305,7 @@ class MangaDetailsScreen extends HookConsumerWidget {
                       onDescriptionRefresh: mangaRefresh,
                       onListRefresh: chapterListRefresh,
                       selectedChapters: selectedChapters,
+                      bottomContentPadding: chapterListBottomPadding,
                     )
                   : SmallScreenMangaDetails(
                       chapterList: filteredChapterList,
@@ -297,6 +315,7 @@ class MangaDetailsScreen extends HookConsumerWidget {
                       onDescriptionRefresh: mangaRefresh,
                       onListRefresh: chapterListRefresh,
                       selectedChapters: selectedChapters,
+                      bottomContentPadding: chapterListBottomPadding,
                     )
               : Emoticons(
                   title: context.l10n.noMangaFound,
@@ -308,9 +327,7 @@ class MangaDetailsScreen extends HookConsumerWidget {
         ),
         refresh: refresh,
         wrapper: (body) => Scaffold(
-          appBar: AppBar(
-            title: Text(context.l10n.manga),
-          ),
+          appBar: AppBar(),
           body: body,
         ),
       ),

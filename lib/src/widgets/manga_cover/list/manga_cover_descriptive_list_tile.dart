@@ -26,22 +26,34 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
     this.onTitleClicked,
     this.showBadges = true,
     this.showCountBadges = true,
+    this.showFullTitle = false,
+    this.showArtist = false,
   });
-  static final _authorSeparator = RegExp(r'[,，]');
+  static final _contributorSeparator = RegExp(r'[,，]');
 
   final MangaDto manga;
   final bool showBadges;
   final bool showCountBadges;
+  final bool showFullTitle;
+  final bool showArtist;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
   final ValueChanged<String>? onTitleClicked;
   @override
   Widget build(BuildContext context) {
     final authors = (manga.author ?? '')
-        .split(_authorSeparator)
-        .map((author) => author.trim())
-        .where((author) => author.isNotEmpty)
+        .split(_contributorSeparator)
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
         .toList(growable: false);
+    final artists = (manga.artist ?? '')
+        .split(_contributorSeparator)
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
+    final hasDistinctArtists = showArtist &&
+        artists.isNotEmpty &&
+        manga.artist?.trim() != manga.author?.trim();
 
     return InkWell(
       onTap: onPressed,
@@ -49,7 +61,9 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: showFullTitle
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
           children: [
             SizedBox(
               width: 120,
@@ -76,8 +90,8 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
                       child: Text(
                         manga.title,
                         style: context.textTheme.titleLarge,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+                        overflow: showFullTitle ? null : TextOverflow.ellipsis,
+                        maxLines: showFullTitle ? null : 2,
                         semanticsLabel: manga.title,
                       ),
                     ),
@@ -91,36 +105,24 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
                         style: context.textTheme.bodyMedium,
                       )
                     else if (authors.isEmpty)
-                      Text(
-                        context.l10n.unknownAuthor,
-                        style: context.textTheme.bodyMedium,
+                      _ContributorNames(
+                        names: [context.l10n.unknownAuthor],
+                        leadingIcon: Icons.person_outline_rounded,
                       )
                     else
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (var index = 0;
-                                index < authors.length;
-                                index++) ...[
-                              if (index > 0)
-                                Text(
-                                  ', ',
-                                  style: context.textTheme.bodyMedium,
-                                ),
-                              InkWell(
-                                onTap: onTitleClicked == null
-                                    ? null
-                                    : () => onTitleClicked!(authors[index]),
-                                child: Text(
-                                  authors[index],
-                                  style: context.textTheme.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                      _ContributorNames(
+                        names: authors,
+                        leadingIcon: Icons.person_outline_rounded,
+                        onNameClicked: onTitleClicked,
                       ),
+                    if (hasDistinctArtists) ...[
+                      Gap(4),
+                      _ContributorNames(
+                        names: artists,
+                        leadingIcon: Icons.brush_rounded,
+                        onNameClicked: onTitleClicked,
+                      ),
+                    ],
                     Gap(8),
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -190,6 +192,53 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ContributorNames extends StatelessWidget {
+  const _ContributorNames({
+    required this.names,
+    required this.leadingIcon,
+    this.onNameClicked,
+  });
+
+  final List<String> names;
+  final IconData leadingIcon;
+  final ValueChanged<String>? onNameClicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = context.textTheme.bodyMedium;
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (var index = 0; index < names.length; index++)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (index == 0) ...[
+                Icon(
+                  leadingIcon,
+                  size: 16,
+                  color: style?.color,
+                ),
+                Gap(4),
+              ],
+              InkWell(
+                onTap: onNameClicked == null
+                    ? null
+                    : () => onNameClicked!(names[index]),
+                child: Text(
+                  index < names.length - 1 ? '${names[index]},' : names[index],
+                  style: style,
+                ),
+              ),
+              if (index < names.length - 1) Gap(4),
+            ],
+          ),
+      ],
     );
   }
 }

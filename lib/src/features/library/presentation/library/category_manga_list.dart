@@ -64,7 +64,6 @@ class CategoryMangaList extends HookConsumerWidget {
                     context: context,
                     builder: (context) => EditMangaCategoryDialog(
                       mangaId: data[index].id,
-                      title: data[index].title,
                     ),
                   );
                   refresh();
@@ -81,7 +80,6 @@ class CategoryMangaList extends HookConsumerWidget {
                     context: context,
                     builder: (context) => EditMangaCategoryDialog(
                       mangaId: data[index].id,
-                      title: data[index].title,
                     ),
                   );
                   refresh();
@@ -113,7 +111,6 @@ class CategoryMangaList extends HookConsumerWidget {
                     context: context,
                     builder: (context) => EditMangaCategoryDialog(
                       mangaId: data[index].id,
-                      title: data[index].title,
                     ),
                   );
                   refresh();

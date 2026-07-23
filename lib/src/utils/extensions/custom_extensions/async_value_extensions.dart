@@ -37,6 +37,7 @@ extension AsyncValueExtensions<T> on AsyncValue<T> {
     Widget Function(T data) data, {
     VoidCallback? refresh,
     Widget Function(Widget)? wrapper,
+    Widget? loading,
     bool showGenericError = false,
     bool addScaffoldWrapper = false,
   }) {
@@ -59,8 +60,10 @@ extension AsyncValueExtensions<T> on AsyncValue<T> {
                   )
                 : null,
           )),
-      loading: () =>
-          AppUtils.wrapOn(wrapper, const CenterSorayomiShimmerIndicator()),
+      loading: () => AppUtils.wrapOn(
+        wrapper,
+        loading ?? const CenterSorayomiShimmerIndicator(),
+      ),
     );
   }
 

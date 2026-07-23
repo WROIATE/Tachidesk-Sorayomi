@@ -666,6 +666,19 @@ type FetchMangaPayload {
   manga: MangaType!
 }
 
+input FetchMangaAndChaptersInput {
+  clientMutationId: String
+  fetchChapters: Boolean!
+  fetchManga: Boolean!
+  id: Int!
+}
+
+type FetchMangaAndChaptersPayload {
+  chapters: [ChapterType!]!
+  clientMutationId: String
+  manga: MangaType!
+}
+
 input FetchSourceMangaInput {
   clientMutationId: String
   filters: [FilterChangeInput!]
@@ -1099,6 +1112,7 @@ type Mutation {
   updateWebUI(input: WebUIUpdateInput!): WebUIUpdatePayload
   deleteMangaMeta(input: DeleteMangaMetaInput!): DeleteMangaMetaPayload
   fetchManga(input: FetchMangaInput!): FetchMangaPayload
+  fetchMangaAndChapters(input: FetchMangaAndChaptersInput!): FetchMangaAndChaptersPayload
   setMangaMeta(input: SetMangaMetaInput!): SetMangaMetaPayload
   updateManga(input: UpdateMangaInput!): UpdateMangaPayload
   updateMangas(input: UpdateMangasInput!): UpdateMangasPayload

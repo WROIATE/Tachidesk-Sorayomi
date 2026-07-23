@@ -26,6 +26,7 @@ class BigScreenMangaDetails extends ConsumerWidget {
     required this.onListRefresh,
     required this.onRefresh,
     required this.onDescriptionRefresh,
+    required this.bottomContentPadding,
   });
   final MangaDto manga;
   final int mangaId;
@@ -34,6 +35,7 @@ class BigScreenMangaDetails extends ConsumerWidget {
   final AsyncValueSetter<bool> onRefresh;
   final ValueNotifier<Map<int, ChapterDto>> selectedChapters;
   final AsyncValue<List<ChapterDto>?> chapterList;
+  final double bottomContentPadding;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredChapterList = chapterList.valueOrNull;
@@ -74,7 +76,7 @@ class BigScreenMangaDetails extends ConsumerWidget {
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemBuilder: (context, index) {
                             if (filteredChapterList.length == index) {
-                              return const ListTile();
+                              return SizedBox(height: bottomContentPadding);
                             }
                             final key =
                                 ValueKey("${filteredChapterList[index].id}");

@@ -179,16 +179,18 @@ class MangaBookRepository {
       );
 
   Future<List<ChapterDto>?> getChapterList(int mangaId) async => client
-      .mutate$GetChaptersByMangaId(
-        Options$Mutation$GetChaptersByMangaId(
-          variables: Variables$Mutation$GetChaptersByMangaId(
-            input: Input$FetchChaptersInput(
-              mangaId: mangaId,
+      .mutate$GetMangaAndChapters(
+        Options$Mutation$GetMangaAndChapters(
+          variables: Variables$Mutation$GetMangaAndChapters(
+            input: Input$FetchMangaAndChaptersInput(
+              id: mangaId,
+              fetchManga: true,
+              fetchChapters: true,
             ),
           ),
         ),
       )
-      .getData((data) => data.fetchChapters?.chapters);
+      .getData((data) => data.fetchMangaAndChapters?.chapters);
 }
 
 @riverpod
