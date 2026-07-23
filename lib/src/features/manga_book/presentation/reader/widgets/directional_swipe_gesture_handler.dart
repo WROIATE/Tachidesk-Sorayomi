@@ -25,6 +25,8 @@ class DirectionalSwipeGestureHandler extends HookWidget {
     required this.onLongPressStart,
     required this.onLongPressEnd,
     required this.onLongPressMoveUpdate,
+    this.onDoubleTapDown,
+    this.onDoubleTap,
     required this.scrollDirection,
     required this.readerSwipeChapterToggle,
     required this.lastPageSwipeEnabled,
@@ -43,6 +45,8 @@ class DirectionalSwipeGestureHandler extends HookWidget {
   final void Function(LongPressStartDetails) onLongPressStart;
   final void Function(LongPressEndDetails) onLongPressEnd;
   final void Function(LongPressMoveUpdateDetails) onLongPressMoveUpdate;
+  final GestureTapDownCallback? onDoubleTapDown;
+  final GestureTapCallback? onDoubleTap;
   final Axis scrollDirection;
   final bool readerSwipeChapterToggle;
   final bool lastPageSwipeEnabled;
@@ -109,6 +113,8 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onLongPressEnd: onLongPressEnd,
       onLongPressMoveUpdate: onLongPressMoveUpdate,
       onTap: onTap,
+      onDoubleTapDown: onDoubleTapDown,
+      onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
       onPanEnd: (details) {
         if (hadMultiplePointers()) return;
@@ -136,6 +142,8 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onLongPressEnd: onLongPressEnd,
       onLongPressMoveUpdate: onLongPressMoveUpdate,
       onTap: onTap,
+      onDoubleTapDown: onDoubleTapDown,
+      onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
       onHorizontalDragEnd: (details) {
         if (hadMultiplePointers()) return;

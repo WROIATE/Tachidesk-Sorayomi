@@ -11,11 +11,15 @@ class KindlishLayout extends StatelessWidget {
     super.key,
     this.onLeftTap,
     this.onRightTap,
+    this.onDoubleTapDown,
+    this.onDoubleTap,
     this.leftColor,
     this.rightColor,
   });
   final VoidCallback? onLeftTap;
   final VoidCallback? onRightTap;
+  final GestureTapDownCallback? onDoubleTapDown;
+  final GestureTapCallback? onDoubleTap;
   final Color? leftColor;
   final Color? rightColor;
   @override
@@ -32,6 +36,8 @@ class KindlishLayout extends StatelessWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: onLeftTap,
+                  onDoubleTapDown: onDoubleTapDown,
+                  onDoubleTap: onDoubleTap,
                   child: Container(color: leftColor),
                 ),
               ),
@@ -40,6 +46,8 @@ class KindlishLayout extends StatelessWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: onRightTap,
+                  onDoubleTapDown: onDoubleTapDown,
+                  onDoubleTap: onDoubleTap,
                   child: Container(color: rightColor),
                 ),
               )

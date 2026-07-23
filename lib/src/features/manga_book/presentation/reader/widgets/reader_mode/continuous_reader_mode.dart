@@ -142,6 +142,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
     final bool isPinchToZoomEnabled = !kIsWeb &&
         (Platform.isAndroid || Platform.isIOS) &&
         ref.watch(pinchToZoomProvider).ifNull(true);
+    final zoomController = useMemoized(ReaderInteractiveViewerController.new);
 
     if (chapterPages.pages.isEmpty) {
       return const CenterSorayomiShimmerIndicator();
@@ -189,9 +190,11 @@ class ContinuousReaderMode extends HookConsumerWidget {
         isAnimationEnabled,
         isNext: true,
       ),
+      onDoubleTap: zoomController.toggleZoomAt,
       child: ReaderInteractiveViewer(
         enabled: isPinchToZoomEnabled,
         resetToken: currentIndex.value,
+        controller: zoomController,
         onInteractionLockChanged: (locked) =>
             isZoomInteractionLocked.value = locked,
         child: ScrollablePositionedList.separated(

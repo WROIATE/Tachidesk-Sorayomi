@@ -59,6 +59,7 @@ class ReaderWrapper extends HookConsumerWidget {
     this.showReaderLayoutAnimation = false,
     required this.chapterPages,
     this.pageController,
+    this.onDoubleTap,
   });
   final Widget child;
   final MangaDto manga;
@@ -71,6 +72,7 @@ class ReaderWrapper extends HookConsumerWidget {
   final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
   final PageController? pageController;
+  final ValueChanged<Offset>? onDoubleTap;
 
   /// Determine transition direction based on reading mode for proper animations
   /// Returns true for vertical transitions, false for horizontal transitions
@@ -594,6 +596,7 @@ class ReaderWrapper extends HookConsumerWidget {
                     chapterPages: chapterPages,
                     showReaderLayoutAnimation: showReaderLayoutAnimation,
                     pageController: pageController,
+                    onDoubleTap: onDoubleTap,
                     child: _buildEnhancedChildWithPageDetection(
                       child,
                       lastPageSwipeEnabled,
@@ -856,6 +859,7 @@ class ReaderView extends HookWidget {
     required this.child,
     this.showReaderLayoutAnimation = false,
     this.pageController,
+    this.onDoubleTap,
   });
 
   final VoidCallback toggleVisibility;
@@ -875,6 +879,7 @@ class ReaderView extends HookWidget {
   final bool showReaderLayoutAnimation;
   final Widget child;
   final PageController? pageController;
+  final ValueChanged<Offset>? onDoubleTap;
 
   /// Gesture handling extracted for better performance and maintainability.
   /// This widget focuses on:
@@ -886,6 +891,17 @@ class ReaderView extends HookWidget {
   Widget build(BuildContext context) {
     final showMagnification = useState(false);
     final dragGesturePosition = useState(Offset.zero);
+    final doubleTapGlobalPosition = useRef<Offset?>(null);
+    void handleDoubleTapDown(TapDownDetails details) {
+      doubleTapGlobalPosition.value = details.globalPosition;
+    }
+
+    void handleDoubleTap() {
+      final globalPosition = doubleTapGlobalPosition.value;
+      if (globalPosition != null) onDoubleTap?.call(globalPosition);
+      doubleTapGlobalPosition.value = null;
+    }
+
     final positionOffset = kMagnifierPosition(
       dragGesturePosition.value,
       context.mediaQuerySize,
@@ -930,6 +946,8 @@ class ReaderView extends HookWidget {
       onNextPage: onNext,
       onPreviousPage: onPrevious,
       pageController: controller,
+      onDoubleTapDown: handleDoubleTapDown,
+      onDoubleTap: handleDoubleTap,
       child: content,
     );
 
@@ -939,6 +957,8 @@ class ReaderView extends HookWidget {
         ReaderNavigationLayoutWidget(
           onNext: onNext,
           onPrevious: onPrevious,
+          onDoubleTapDown: handleDoubleTapDown,
+          onDoubleTap: handleDoubleTap,
           navigationLayout: mangaReaderNavigationLayout,
           showReaderLayoutAnimation: showReaderLayoutAnimation,
         ),

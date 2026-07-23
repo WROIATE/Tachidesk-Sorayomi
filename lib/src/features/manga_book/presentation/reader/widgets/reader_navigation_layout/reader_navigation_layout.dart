@@ -24,11 +24,15 @@ class ReaderNavigationLayoutWidget extends HookConsumerWidget {
     this.navigationLayout,
     required this.onPrevious,
     required this.onNext,
+    this.onDoubleTapDown,
+    this.onDoubleTap,
     this.showReaderLayoutAnimation = false,
   });
   final ReaderNavigationLayout? navigationLayout;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
+  final GestureTapDownCallback? onDoubleTapDown;
+  final GestureTapCallback? onDoubleTap;
   final bool showReaderLayoutAnimation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -70,24 +74,32 @@ class ReaderNavigationLayoutWidget extends HookConsumerWidget {
       ReaderNavigationLayout.edge => EdgeLayout(
           onLeftTap: onLeftTap,
           onRightTap: onRightTap,
+          onDoubleTapDown: onDoubleTapDown,
+          onDoubleTap: onDoubleTap,
           leftColor: leftColor,
           rightColor: rightColor,
         ),
       ReaderNavigationLayout.kindlish => KindlishLayout(
           onLeftTap: onLeftTap,
           onRightTap: onRightTap,
+          onDoubleTapDown: onDoubleTapDown,
+          onDoubleTap: onDoubleTap,
           leftColor: leftColor,
           rightColor: rightColor,
         ),
       ReaderNavigationLayout.lShaped => LShapedLayout(
           onLeftTap: onLeftTap,
           onRightTap: onRightTap,
+          onDoubleTapDown: onDoubleTapDown,
+          onDoubleTap: onDoubleTap,
           leftColor: leftColor,
           rightColor: rightColor,
         ),
       ReaderNavigationLayout.rightAndLeft => RightAndLeftLayout(
           onLeftTap: onLeftTap,
           onRightTap: onRightTap,
+          onDoubleTapDown: onDoubleTapDown,
+          onDoubleTap: onDoubleTap,
           leftColor: leftColor,
           rightColor: rightColor,
         ),

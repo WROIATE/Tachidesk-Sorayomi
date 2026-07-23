@@ -54,6 +54,7 @@ class SinglePageReaderMode extends HookConsumerWidget {
     );
     final currentIndex = useState(scrollController.initialPage);
     final isZoomInteractionLocked = useState(false);
+    final zoomController = useMemoized(ReaderInteractiveViewerController.new);
 
     useEffect(() {
       int currentPage = currentIndex.value;
@@ -105,9 +106,11 @@ class SinglePageReaderMode extends HookConsumerWidget {
         curve: kCurve,
       ),
       pageController: scrollController,
+      onDoubleTap: zoomController.toggleZoomAt,
       child: ReaderInteractiveViewer(
         enabled: isPinchToZoomEnabled,
         resetToken: currentIndex.value,
+        controller: zoomController,
         onInteractionLockChanged: (locked) =>
             isZoomInteractionLocked.value = locked,
         child: NotificationListener<ScrollEndNotification>(
