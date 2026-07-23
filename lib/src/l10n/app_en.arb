@@ -102,6 +102,9 @@
     "@categories": {
         "description": "Button text of edit Categories screen in Library settings screen"
     },
+    "@allCategories": {
+        "description": "Option to remove a category filter"
+    },
     "@categoryUpdate": {
         "description": "Button text to update the mangas in the Category"
     },
@@ -787,6 +790,12 @@
     "@selectInBetween": {
         "description": "Toast Text for selecting chapters in between first and last Chapters"
     },
+    "@selectAll": {
+        "description": "Tooltip for selecting all visible items"
+    },
+    "@invertSelection": {
+        "description": "Tooltip for inverting the current selection"
+    },
     "@selectNext10": {
         "description": "Toast Text for selecting next 10 chapters"
     },
@@ -976,6 +985,7 @@
     "cacheCleared": "Cache Cleared",
     "cancel": "Cancel",
     "categories": "Categories",
+    "allCategories": "All categories",
     "categoryUpdate": "Category Update",
     "channel": "Channel",
     "chapterDownloadLimit": "Chapter download limit",
@@ -1265,7 +1275,9 @@
     "scanlators": "Scanlators",
     "search": "Search",
     "searchingForUpdates": "Searching for updates",
+    "selectAll": "Select all",
     "selectInBetween": "Select in between",
+    "invertSelection": "Invert selection",
     "selectNext10": "Select next 10",
     "selectUnread": "Select Unread",
     "server": "Server",

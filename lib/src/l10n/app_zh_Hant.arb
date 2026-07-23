@@ -31,6 +31,10 @@
   "@categories": {
     "description": "Button text of edit Categories screen in Library settings screen"
   },
+  "allCategories": "全部分類",
+  "@allCategories": {
+    "description": "清除分類篩選的選項"
+  },
   "close": "關閉",
   "@close": {
     "description": "Text for close button"
@@ -880,6 +884,14 @@
   "selectInBetween": "選取區間",
   "@selectInBetween": {
     "description": "Toast Text for selecting chapters in between first and last Chapters"
+  },
+  "selectAll": "全選",
+  "@selectAll": {
+    "description": "選擇全部可見項目的提示"
+  },
+  "invertSelection": "反選",
+  "@invertSelection": {
+    "description": "反轉目前選擇的提示"
   },
   "readerOverlaySubtitle": "開啟章節時顯示標題和設定",
   "@readerOverlaySubtitle": {},

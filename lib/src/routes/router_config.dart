@@ -15,6 +15,7 @@ import '../features/browse_center/presentation/source_preference/source_preferen
 import '../features/history/presentation/history_screen.dart';
 import '../features/library/presentation/category/edit_category_screen.dart';
 import '../features/library/presentation/library/library_screen.dart';
+import '../features/manga_book/presentation/downloads/downloaded_manga_screen.dart';
 import '../features/manga_book/presentation/downloads/downloads_screen.dart';
 import '../features/manga_book/presentation/manga_details/manga_details_screen.dart';
 import '../features/manga_book/presentation/reader/reader_screen.dart';
@@ -66,6 +67,7 @@ abstract class Routes {
   static const updates = '/updates';
 
   static const downloads = '/downloads';
+  static const downloadedManga = '/downloads/manga/:mangaId';
 
   static const history = 'history';
 
@@ -163,7 +165,11 @@ GoRouter routerConfig(ref) {
           ],
         ),
         TypedStatefulShellBranch<DownloadsBranch>(
-          routes: [TypedGoRoute<DownloadsRoute>(path: Routes.downloads)],
+          routes: [
+            TypedGoRoute<DownloadsRoute>(
+              path: Routes.downloads,
+            ),
+          ],
         ),
         TypedStatefulShellBranch<MoreBranch>(
           routes: [
@@ -208,6 +214,7 @@ GoRouter routerConfig(ref) {
         ),
       ],
     ),
+    TypedGoRoute<DownloadedMangaRoute>(path: Routes.downloadedManga),
     TypedGoRoute<MangaRoute>(
       path: Routes.mangaRoute,
       routes: [TypedGoRoute<ReaderRoute>(path: Routes.reader)],

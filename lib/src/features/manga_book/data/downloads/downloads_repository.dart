@@ -11,6 +11,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../global_providers/global_providers.dart';
 import '../../../../graphql/__generated__/schema.graphql.dart';
 import '../../../../utils/extensions/custom_extensions.dart';
+import '../../domain/chapter/chapter_model.dart';
 import '../../domain/downloads/downloads_model.dart';
 import '../../domain/downloads_queue/downloads_queue_model.dart';
 import './graphql/__generated__/query.graphql.dart';
@@ -89,6 +90,47 @@ class DownloadsRepository {
 
   Future<DownloadStatusDto?> getDownloadStatus() =>
       client.query$GetDownloadStatus().getData((data) => data.downloadStatus);
+
+  Future<List<ChapterWithMangaDto>> getDownloadedChapters({
+    int? mangaId,
+  }) async {
+    const pageSize = 100;
+    final downloadedChapters = <ChapterWithMangaDto>[];
+    int? after;
+
+    while (true) {
+      final page = await client
+          .query$GetDownloadedChapterPage(
+            Options$Query$GetDownloadedChapterPage(
+              fetchPolicy: FetchPolicy.networkOnly,
+              variables: Variables$Query$GetDownloadedChapterPage(
+                after: after,
+                condition: Input$ChapterConditionInput(
+                  isDownloaded: true,
+                  mangaId: mangaId,
+                ),
+                first: pageSize,
+              ),
+            ),
+          )
+          .getData((data) => data.chapters);
+
+      if (page == null) {
+        throw StateError('Downloaded chapters query returned no data');
+      }
+
+      downloadedChapters.addAll(page.nodes);
+      if (!page.pageInfo.hasNextPage) {
+        return downloadedChapters;
+      }
+
+      final nextCursor = page.pageInfo.endCursor;
+      if (nextCursor == null || nextCursor == after) {
+        throw StateError('Downloaded chapters pagination did not advance');
+      }
+      after = nextCursor;
+    }
+  }
 }
 
 @riverpod

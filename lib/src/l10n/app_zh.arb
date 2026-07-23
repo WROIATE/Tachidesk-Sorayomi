@@ -143,6 +143,10 @@
   "@categories": {
     "description": "Button text of edit Categories screen in Library settings screen"
   },
+  "allCategories": "全部分类",
+  "@allCategories": {
+    "description": "清除分类筛选的选项"
+  },
   "categoryUpdate": "更新分类",
   "@categoryUpdate": {
     "description": "Button text to update the mangas in the Category"
@@ -868,6 +872,14 @@
   "selectInBetween": "选取区间",
   "@selectInBetween": {
     "description": "Toast Text for selecting chapters in between first and last Chapters"
+  },
+  "selectAll": "全选",
+  "@selectAll": {
+    "description": "选择全部可见项目的提示"
+  },
+  "invertSelection": "反选",
+  "@invertSelection": {
+    "description": "反转当前选择的提示"
   },
   "readerOverlaySubtitle": "打开章节时显示标题和设置",
   "@readerOverlaySubtitle": {},

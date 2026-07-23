@@ -4,10 +4,13 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../../utils/extensions/custom_extensions.dart';
+import '../../../../library/data/category_repository.dart';
 import '../../../data/downloads/downloads_repository.dart';
+import '../../../domain/chapter/chapter_model.dart';
 import '../../../domain/downloads/downloads_model.dart';
 import '../../../domain/downloads/graphql/__generated__/fragment.graphql.dart';
 import '../../../domain/downloads_queue/downloads_queue_model.dart';
+import '../models/downloaded_manga_group.dart';
 
 part 'downloads_controller.g.dart';
 
@@ -153,4 +156,68 @@ bool showDownloadsFAB(Ref ref) {
                 element.download.state != DownloadState.ERROR ||
                 element.download.tries != 3,
           );
+}
+
+@riverpod
+Future<List<ChapterWithMangaDto>> downloadedChapters(Ref ref) =>
+    ref.watch(downloadsRepositoryProvider).getDownloadedChapters();
+
+@riverpod
+Future<List<ChapterWithMangaDto>> downloadedMangaChapters(
+  Ref ref,
+  int mangaId,
+) =>
+    ref
+        .watch(downloadsRepositoryProvider)
+        .getDownloadedChapters(mangaId: mangaId);
+
+@riverpod
+class DownloadedMangaSortSettings extends _$DownloadedMangaSortSettings {
+  @override
+  DownloadedMangaSortSetting build() => (
+        by: DownloadedMangaSort.lastUpdated,
+        ascending: false,
+      );
+
+  void select(DownloadedMangaSort sort) {
+    if (state.by == sort) {
+      toggleDirection();
+      return;
+    }
+    state = (
+      by: sort,
+      ascending: sort == DownloadedMangaSort.alphabetical,
+    );
+  }
+
+  void toggleDirection() => state = (by: state.by, ascending: !state.ascending);
+}
+
+@riverpod
+class DownloadedMangaQuery extends _$DownloadedMangaQuery {
+  @override
+  String? build() => null;
+
+  void update(String? query) => state = query;
+}
+
+@riverpod
+class DownloadedMangaCategoryFilter extends _$DownloadedMangaCategoryFilter {
+  @override
+  int? build() => null;
+
+  void update(int? categoryId) => state = categoryId;
+}
+
+@riverpod
+Future<Set<int>> downloadedCategoryMangaIds(
+  Ref ref,
+  int categoryId,
+) async {
+  final mangas = await ref
+      .watch(categoryRepositoryProvider)
+      .getMangasFromCategory(categoryId: categoryId);
+  return {
+    for (final manga in [...?mangas]) manga.id
+  };
 }

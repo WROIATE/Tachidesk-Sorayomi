@@ -49,3 +49,18 @@ query GetDownloadStatus {
     ...DownloadStatusDto
   }
 }
+
+query GetDownloadedChapterPage(
+  $after: Cursor
+  $condition: ChapterConditionInput!
+  $first: Int!
+) {
+  chapters(
+    after: $after
+    condition: $condition
+    first: $first
+    order: [{ by: ID, byType: ASC }]
+  ) {
+    ...ChapterPageWithMangaDto
+  }
+}

@@ -9,3 +9,12 @@ class DownloadsRoute extends GoRouteData {
   @override
   Widget build(context, state) => const DownloadsScreen();
 }
+
+class DownloadedMangaRoute extends GoRouteData {
+  const DownloadedMangaRoute({required this.mangaId});
+
+  final int mangaId;
+
+  @override
+  Widget build(context, state) => DownloadedMangaScreen(mangaId: mangaId);
+}
