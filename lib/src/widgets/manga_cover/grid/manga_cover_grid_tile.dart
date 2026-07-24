@@ -24,6 +24,7 @@ class MangaCoverGridTile extends StatelessWidget {
     this.showBadges = true,
     this.showCountBadges = false,
     this.showDarkOverlay = true,
+    this.retryImageAfterFailure,
   });
   final MangaDto manga;
   final VoidCallback? onPressed;
@@ -32,6 +33,7 @@ class MangaCoverGridTile extends StatelessWidget {
   final bool showTitle;
   final bool showBadges;
   final bool showDarkOverlay;
+  final Future<void>? retryImageAfterFailure;
   @override
   Widget build(BuildContext context) {
     return InkResponse(
@@ -109,7 +111,10 @@ class MangaCoverGridTile extends StatelessWidget {
                           )
                         : null,
                   ),
-                  child: ServerImage(imageUrl: manga.thumbnailUrl ?? ""),
+                  child: ServerImage(
+                    imageUrl: manga.thumbnailUrl ?? "",
+                    retryAfterFailure: retryImageAfterFailure,
+                  ),
                 )
               : SizedBox(
                   height: context.height * .3,

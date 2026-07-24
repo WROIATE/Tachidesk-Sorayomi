@@ -25,6 +25,27 @@ import '../utils/extensions/custom_extensions.dart';
 import '../utils/misc/app_utils.dart';
 import 'custom_circular_progress_indicator.dart';
 
+class ServerImageRetryCoordinator {
+  bool _hasRetried = false;
+
+  bool get hasRetried => _hasRetried;
+
+  Future<void> retryAfter({
+    required Future<void> barrier,
+    required VoidCallback retry,
+  }) async {
+    if (_hasRetried) return;
+    _hasRetried = true;
+
+    try {
+      await barrier;
+    } catch (_) {
+      // The image should still get its single retry after refresh settles.
+    }
+    retry();
+  }
+}
+
 class ServerImage extends HookConsumerWidget {
   const ServerImage({
     super.key,
@@ -35,6 +56,7 @@ class ServerImage extends HookConsumerWidget {
     this.progressIndicatorBuilder,
     this.wrapper,
     this.showReloadButton = false,
+    this.retryAfterFailure,
   });
 
   final String imageUrl;
@@ -45,10 +67,16 @@ class ServerImage extends HookConsumerWidget {
       progressIndicatorBuilder;
   final Widget Function(Widget child)? wrapper;
   final bool showReloadButton;
+  final Future<void>? retryAfterFailure;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final key = useState(UniqueKey());
+    final isWaitingToRetry = useState(false);
+    final retryCoordinator = useMemoized(
+      ServerImageRetryCoordinator.new,
+      [imageUrl, retryAfterFailure],
+    );
     // Providers
     final authType = ref.watch(authTypeKeyProvider);
     final basicToken = ref.watch(credentialsProvider);
@@ -108,6 +136,12 @@ class ServerImage extends HookConsumerWidget {
         );
 
     Widget errorWidget(BuildContext context, String error, stackTrace) {
+      if (isWaitingToRetry.value) {
+        return AppUtils.wrapOn(
+          wrapper,
+          const CenterSorayomiShimmerIndicator(),
+        );
+      }
       if (showReloadButton) {
         return AppUtils.wrapOn(
           wrapper,
@@ -152,6 +186,24 @@ class ServerImage extends HookConsumerWidget {
       );
     }
 
+    void retryOnFailure(Object _) {
+      final barrier = retryAfterFailure;
+      if (barrier == null || retryCoordinator.hasRetried) return;
+      isWaitingToRetry.value = true;
+
+      unawaited(
+        retryCoordinator.retryAfter(
+          barrier: barrier,
+          retry: () {
+            if (context.mounted) {
+              isWaitingToRetry.value = false;
+              key.value = UniqueKey();
+            }
+          },
+        ),
+      );
+    }
+
     return CachedNetworkImage(
       key: key.value,
       imageUrl: baseApi,
@@ -163,6 +215,7 @@ class ServerImage extends HookConsumerWidget {
       imageRenderMethodForWeb: renderMethod,
       progressIndicatorBuilder: finalProgressIndicatorBuilder,
       errorWidget: errorWidget,
+      errorListener: retryOnFailure,
     );
   }
 }

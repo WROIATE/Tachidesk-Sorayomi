@@ -28,6 +28,7 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
     this.showCountBadges = true,
     this.showFullTitle = false,
     this.showArtist = false,
+    this.retryImageAfterFailure,
   });
   static final _contributorSeparator = RegExp(r'[,，]');
 
@@ -36,6 +37,7 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
   final bool showCountBadges;
   final bool showFullTitle;
   final bool showArtist;
+  final Future<void>? retryImageAfterFailure;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
   final ValueChanged<String>? onTitleClicked;
@@ -73,6 +75,7 @@ class MangaCoverDescriptiveListTile extends StatelessWidget {
                 showBadges: false,
                 showTitle: false,
                 showDarkOverlay: false,
+                retryImageAfterFailure: retryImageAfterFailure,
               ),
             ),
             Expanded(

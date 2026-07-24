@@ -17,6 +17,7 @@ import '../../../../../utils/misc/toast/toast.dart';
 import '../../../../../widgets/async_buttons/async_text_button_icon.dart';
 import '../../../../../widgets/manga_cover/list/manga_cover_descriptive_list_tile.dart';
 import '../../../domain/manga/manga_model.dart';
+import '../controller/manga_details_controller.dart';
 import 'edit_manga_category_dialog.dart';
 
 class MangaDescription extends HookConsumerWidget {
@@ -34,6 +35,12 @@ class MangaDescription extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExpanded = useState(context.isTablet);
+    final retryCoverAfterRefresh = useMemoized(
+      () => ref
+          .read(mangaChapterListProvider(mangaId: manga.id).future)
+          .then<void>((_) {}),
+      [manga.id],
+    );
     final genres = manga.genre
         .map((genre) => genre.trim())
         .where((genre) => genre.isNotEmpty)
@@ -47,6 +54,7 @@ class MangaDescription extends HookConsumerWidget {
           showBadges: false,
           showFullTitle: true,
           showArtist: true,
+          retryImageAfterFailure: retryCoverAfterRefresh,
           onTitleClicked: (query) =>
               GlobalSearchRoute(query: query).push(context),
         ),
