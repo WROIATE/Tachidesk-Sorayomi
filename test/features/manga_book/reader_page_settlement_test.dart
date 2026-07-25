@@ -7,11 +7,13 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter/graphq
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/manga/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/manga_details/controller/manga_details_controller.dart';
+import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_mode/continuous_reader_mode.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_mode/single_page_reader_mode.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_wrapper.dart';
 import 'package:tachidesk_sorayomi/src/global_providers/global_providers.dart';
 import 'package:tachidesk_sorayomi/src/graphql/__generated__/schema.graphql.dart';
 import 'package:tachidesk_sorayomi/src/l10n/generated/app_localizations.dart';
+import 'package:tachidesk_sorayomi/src/widgets/server_image.dart';
 
 void main() {
   testWidgets('paged reader updates its outer state after scrolling settles', (
@@ -55,6 +57,7 @@ void main() {
     await tester.pump();
 
     expect(_readerIndex(tester), 0);
+    expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
 
     final pageView = find.byType(PageView);
     final pageBounds = tester.getRect(pageView);
@@ -72,6 +75,8 @@ void main() {
     );
     expect(_readerIndex(tester), 0);
     expect(changedPages, isEmpty);
+    expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
+    expect(_serverImage(tester, '/page-2').isAnimationActive, isFalse);
 
     await gesture.up();
     for (var i = 0; i < 20; i++) {
@@ -84,6 +89,7 @@ void main() {
     );
     expect(_readerIndex(tester), 1);
     expect(changedPages, [1]);
+    expect(_serverImage(tester, '/page-2').isAnimationActive, isTrue);
 
     tester.widget<PageView>(pageView).controller!.jumpToPage(0);
     await tester.pump();
@@ -91,10 +97,56 @@ void main() {
     expect(_readerIndex(tester), 0);
     expect(changedPages, [1, 0]);
   });
+
+  testWidgets('continuous reader pauses preloaded page animations', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'readerOverlay': false,
+      'swipeToggle': false,
+      'lastPageSwipeEnabled': false,
+    });
+    final preferences = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          getNextAndPreviousChaptersProvider(
+            mangaId: 1,
+            chapterId: 1,
+          ).overrideWith((_) => null),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ContinuousReaderMode(
+            manga: _manga,
+            chapter: _chapter,
+            chapterPages: _chapterPages,
+            initialPage: 0,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
+    expect(_serverImage(tester, '/page-2').isAnimationActive, isFalse);
+  });
 }
 
 int _readerIndex(WidgetTester tester) =>
     tester.widget<ReaderWrapper>(find.byType(ReaderWrapper)).currentIndex;
+
+ServerImage _serverImage(WidgetTester tester, String imageUrl) => tester
+    .widgetList<ServerImage>(find.byType(ServerImage))
+    .singleWhere((image) => image.imageUrl == imageUrl);
 
 final _manga = Fragment$MangaDto(
   downloadCount: 0,

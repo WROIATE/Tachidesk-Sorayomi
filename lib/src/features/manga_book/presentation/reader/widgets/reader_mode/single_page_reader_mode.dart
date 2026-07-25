@@ -49,9 +49,7 @@ class SinglePageReaderMode extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cacheManager = useMemoized(() => DefaultCacheManager());
-    final scrollController = usePageController(
-      initialPage: initialPage,
-    );
+    final scrollController = usePageController(initialPage: initialPage);
     final currentIndex = useState(scrollController.initialPage);
     final isZoomInteractionLocked = useState(false);
     final zoomController = useMemoized(ReaderInteractiveViewerController.new);
@@ -62,31 +60,24 @@ class SinglePageReaderMode extends HookConsumerWidget {
       if (chapterPages.pages.isNotEmpty) {
         // Prev page
         if (currentPage > 0 && currentPage - 1 < chapterPages.pages.length) {
-          cacheManager.getServerFile(
-            ref,
-            chapterPages.pages[currentPage - 1],
-          );
+          cacheManager.getServerFile(ref, chapterPages.pages[currentPage - 1]);
         }
         // Next page
         if (currentPage < (chapterPages.pages.length - 1)) {
-          cacheManager.getServerFile(
-            ref,
-            chapterPages.pages[currentPage + 1],
-          );
+          cacheManager.getServerFile(ref, chapterPages.pages[currentPage + 1]);
         }
         // 2nd next page
         if (currentPage < (chapterPages.pages.length - 2)) {
-          cacheManager.getServerFile(
-            ref,
-            chapterPages.pages[currentPage + 2],
-          );
+          cacheManager.getServerFile(ref, chapterPages.pages[currentPage + 2]);
         }
       }
       return null;
     }, [currentIndex.value, chapterPages.pages.length]);
-    final isAnimationEnabled =
-        ref.read(readerScrollAnimationProvider).ifNull(true);
-    final isPinchToZoomEnabled = !kIsWeb &&
+    final isAnimationEnabled = ref
+        .read(readerScrollAnimationProvider)
+        .ifNull(true);
+    final isPinchToZoomEnabled =
+        !kIsWeb &&
         (Platform.isAndroid || Platform.isIOS) &&
         ref.watch(pinchToZoomProvider).ifNull(true);
     return ReaderWrapper(
@@ -137,16 +128,12 @@ class SinglePageReaderMode extends HookConsumerWidget {
             itemBuilder: (BuildContext context, int index) {
               // Show loading indicator if no pages are available yet
               if (chapterPages.pages.isEmpty) {
-                return const Center(
-                  child: CenterSorayomiShimmerIndicator(),
-                );
+                return const Center(child: CenterSorayomiShimmerIndicator());
               }
 
               // Add bounds checking to prevent accessing non-existent pages
               if (index >= chapterPages.pages.length) {
-                return const Center(
-                  child: CenterSorayomiShimmerIndicator(),
-                );
+                return const Center(child: CenterSorayomiShimmerIndicator());
               }
 
               final image = ServerImage(
@@ -155,15 +142,18 @@ class SinglePageReaderMode extends HookConsumerWidget {
                 size: Size.fromHeight(context.height),
                 appendApiToUrl: false,
                 imageUrl: chapterPages.pages[index],
+                preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+                isAnimationActive: index == currentIndex.value,
                 progressIndicatorBuilder: (context, url, downloadProgress) =>
                     CenterSorayomiShimmerIndicator(
-                  value: downloadProgress.progress,
-                ),
+                      value: downloadProgress.progress,
+                    ),
               );
               return image;
             },
-            itemCount:
-                chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+            itemCount: chapterPages.pages.isEmpty
+                ? 1
+                : chapterPages.pages.length,
           ),
         ),
       ),

@@ -34,8 +34,9 @@ class _ScrollConfig {
   static const double minVisibleAreaThreshold = 0.4;
 
   /// Extended delay only for programmatic navigation to prevent jumps
-  static const Duration programmaticNavigationDelay =
-      Duration(milliseconds: 800);
+  static const Duration programmaticNavigationDelay = Duration(
+    milliseconds: 800,
+  );
 }
 
 class ContinuousReaderMode extends HookConsumerWidget {
@@ -64,10 +65,12 @@ class ContinuousReaderMode extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ItemScrollController scrollController =
-        useMemoized(() => ItemScrollController());
-    final ItemPositionsListener positionsListener =
-        useMemoized(() => ItemPositionsListener.create());
+    final ItemScrollController scrollController = useMemoized(
+      () => ItemScrollController(),
+    );
+    final ItemPositionsListener positionsListener = useMemoized(
+      () => ItemPositionsListener.create(),
+    );
 
     final ValueNotifier<int> currentIndex = useState(
       chapterPages.pages.isEmpty
@@ -93,8 +96,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
     // Enhanced position tracking that allows UI updates but prevents jumps
     useEffect(() {
       void listener() {
-        final List<ItemPosition> positions =
-            positionsListener.itemPositions.value.toList();
+        final List<ItemPosition> positions = positionsListener
+            .itemPositions
+            .value
+            .toList();
 
         if (positions.isEmpty) return;
 
@@ -111,11 +116,14 @@ class ContinuousReaderMode extends HookConsumerWidget {
         positionUpdateTimer.value?.cancel();
 
         // Only allow programmatic navigation after extended delay
-        positionUpdateTimer.value =
-            Timer(_ScrollConfig.programmaticNavigationDelay, () {
-          isUserScrolling.value = false;
-          isNavigatingFromSlider.value = false; // Reset slider navigation flag
-        });
+        positionUpdateTimer.value = Timer(
+          _ScrollConfig.programmaticNavigationDelay,
+          () {
+            isUserScrolling.value = false;
+            isNavigatingFromSlider.value =
+                false; // Reset slider navigation flag
+          },
+        );
       }
 
       positionsListener.itemPositions.addListener(listener);
@@ -137,9 +145,11 @@ class ContinuousReaderMode extends HookConsumerWidget {
       return null;
     }, [currentIndex.value]); // Only watch currentIndex changes
 
-    final bool isAnimationEnabled =
-        ref.read(readerScrollAnimationProvider).ifNull(true);
-    final bool isPinchToZoomEnabled = !kIsWeb &&
+    final bool isAnimationEnabled = ref
+        .read(readerScrollAnimationProvider)
+        .ifNull(true);
+    final bool isPinchToZoomEnabled =
+        !kIsWeb &&
         (Platform.isAndroid || Platform.isIOS) &&
         ref.watch(pinchToZoomProvider).ifNull(true);
     final zoomController = useMemoized(ReaderInteractiveViewerController.new);
@@ -220,6 +230,8 @@ class ContinuousReaderMode extends HookConsumerWidget {
                   : BoxFit.fitHeight,
               appendApiToUrl: false,
               imageUrl: chapterPages.pages[index],
+              preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+              isAnimationActive: index == currentIndex.value,
               progressIndicatorBuilder: (_, __, downloadProgress) => Center(
                 child: CircularProgressIndicator(
                   value: downloadProgress.progress,
@@ -324,16 +336,17 @@ class ContinuousReaderMode extends HookConsumerWidget {
 
   /// Safe navigation that only works when appropriate and doesn't interfere with scrolling
   static void _handleNavigationSafely(
-      ItemScrollController scrollController,
-      ItemPositionsListener positionsListener,
-      ValueNotifier<bool> isUserScrolling,
-      bool isAnimationEnabled,
-      {required bool isNext}) {
+    ItemScrollController scrollController,
+    ItemPositionsListener positionsListener,
+    ValueNotifier<bool> isUserScrolling,
+    bool isAnimationEnabled, {
+    required bool isNext,
+  }) {
     // Don't interfere if user is actively scrolling
     if (isUserScrolling.value) return;
 
-    final List<ItemPosition> positions =
-        positionsListener.itemPositions.value.toList();
+    final List<ItemPosition> positions = positionsListener.itemPositions.value
+        .toList();
     if (positions.isEmpty) return;
 
     // Find current position
@@ -363,8 +376,9 @@ class ContinuousReaderMode extends HookConsumerWidget {
     } else {
       // Move to previous item with minimal scroll
       if (currentPosition.itemLeadingEdge < 0.2) {
-        targetIndex =
-            (currentPosition.index - 1).clamp(0, double.infinity).toInt();
+        targetIndex = (currentPosition.index - 1)
+            .clamp(0, double.infinity)
+            .toInt();
         alignment = 0.0;
       } else {
         targetIndex = currentPosition.index;
@@ -376,16 +390,14 @@ class ContinuousReaderMode extends HookConsumerWidget {
     if (isAnimationEnabled) {
       scrollController.scrollTo(
         index: targetIndex,
-        duration:
-            const Duration(milliseconds: 200), // Faster, gentler animation
+        duration: const Duration(
+          milliseconds: 200,
+        ), // Faster, gentler animation
         curve: Curves.easeOut, // Gentler curve
         alignment: alignment,
       );
     } else {
-      scrollController.jumpTo(
-        index: targetIndex,
-        alignment: alignment,
-      );
+      scrollController.jumpTo(index: targetIndex, alignment: alignment);
     }
   }
 }
