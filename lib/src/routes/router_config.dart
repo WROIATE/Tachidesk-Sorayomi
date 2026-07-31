@@ -69,7 +69,7 @@ abstract class Routes {
   static const downloads = '/downloads';
   static const downloadedManga = '/downloads/manga/:mangaId';
 
-  static const history = 'history';
+  static const history = '/history';
 
   static const extensionRoute = '/extension';
   static const source = '/source';
@@ -131,9 +131,6 @@ GoRouter routerConfig(ref) {
         TypedStatefulShellBranch<UpdatesBranch>(
           routes: [TypedGoRoute<UpdatesRoute>(path: Routes.updates)],
         ),
-        TypedStatefulShellBranch<HistoryBranch>(
-          routes: [TypedGoRoute<HistoryTabRoute>(path: '/history')],
-        ),
         TypedStatefulShellBranch<BrowserBranch>(
           routes: [
             TypedStatefulShellRoute<BrowseShellRoute>(
@@ -164,12 +161,8 @@ GoRouter routerConfig(ref) {
             ),
           ],
         ),
-        TypedStatefulShellBranch<DownloadsBranch>(
-          routes: [
-            TypedGoRoute<DownloadsRoute>(
-              path: Routes.downloads,
-            ),
-          ],
+        TypedStatefulShellBranch<HistoryBranch>(
+          routes: [TypedGoRoute<HistoryTabRoute>(path: Routes.history)],
         ),
         TypedStatefulShellBranch<MoreBranch>(
           routes: [
@@ -177,7 +170,6 @@ GoRouter routerConfig(ref) {
               path: Routes.more,
               routes: [
                 TypedGoRoute<AboutRoute>(path: Routes.about),
-                TypedGoRoute<HistoryRoute>(path: Routes.history),
                 TypedGoRoute<SettingsRoute>(
                   path: Routes.settings,
                   routes: [
@@ -214,6 +206,7 @@ GoRouter routerConfig(ref) {
         ),
       ],
     ),
+    TypedGoRoute<DownloadsRoute>(path: Routes.downloads),
     TypedGoRoute<DownloadedMangaRoute>(path: Routes.downloadedManga),
     TypedGoRoute<MangaRoute>(
       path: Routes.mangaRoute,

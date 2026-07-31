@@ -39,9 +39,9 @@ class MoreScreen extends ConsumerWidget {
             onTap: () => const EditCategoriesRoute().push(context),
           ),
           ListTile(
-            title: Text(context.l10n.history),
-            leading: const Icon(Icons.history_rounded),
-            onTap: () => const HistoryRoute().go(context),
+            title: Text(context.l10n.downloads),
+            leading: const Icon(Icons.download_rounded),
+            onTap: () => const DownloadsRoute().push(context),
           ),
           const AppThemeModeTile(),
           ListTile(

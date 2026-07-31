@@ -38,8 +38,9 @@ class UpdatesScreen extends HookConsumerWidget {
           try {
             if (recentChaptersPage != null) {
               if (recentChaptersPage.pageInfo.hasNextPage) {
-                controller
-                    .appendPage([...recentChaptersPage.nodes], pageKey + 1);
+                controller.appendPage([
+                  ...recentChaptersPage.nodes,
+                ], pageKey + 1);
               } else {
                 controller.appendLastPage([...recentChaptersPage.nodes]);
               }
@@ -55,20 +56,20 @@ class UpdatesScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller =
-        usePagingController<int, ChapterWithMangaDto>(firstPageKey: 0);
+    final controller = usePagingController<int, ChapterWithMangaDto>(
+      firstPageKey: 0,
+    );
     final updatesRepository = ref.watch(updatesRepositoryProvider);
     final isUpdatesChecking = ref
-        .watch(updatesSocketProvider
-            .select((value) => value.valueOrNull?.isRunning))
+        .watch(
+          updatesSocketProvider.select((value) => value.valueOrNull?.isRunning),
+        )
         .ifNull();
     final selectedChapters = useState<Map<int, ChapterDto>>({});
     useEffect(() {
-      controller.addPageRequestListener((pageKey) => _fetchPage(
-            updatesRepository,
-            controller,
-            pageKey,
-          ));
+      controller.addPageRequestListener(
+        (pageKey) => _fetchPage(updatesRepository, controller, pageKey),
+      );
       return;
     }, []);
     useEffect(() {
@@ -82,6 +83,90 @@ class UpdatesScreen extends HookConsumerWidget {
       }
       return null;
     }, [isUpdatesChecking]);
+
+    final updatesContent = RefreshIndicator(
+      onRefresh: () async {
+        selectedChapters.value = ({});
+        controller.refresh();
+      },
+      child: PagedListView(
+        pagingController: controller,
+        builderDelegate: PagedChildBuilderDelegate<ChapterWithMangaDto>(
+          firstPageProgressIndicatorBuilder: (context) =>
+              const CenterSorayomiShimmerIndicator(),
+          firstPageErrorIndicatorBuilder: (context) => Emoticons(
+            title: controller.error.toString(),
+            button: TextButton(
+              onPressed: () => controller.refresh(),
+              child: Text(context.l10n.retry),
+            ),
+          ),
+          noItemsFoundIndicatorBuilder: (context) => Emoticons(
+            title: context.l10n.noUpdatesFound,
+            button: TextButton(
+              onPressed: () => controller.refresh(),
+              child: Text(context.l10n.refresh),
+            ),
+          ),
+          itemBuilder: (context, item, index) {
+            int? previousDate;
+            try {
+              previousDate = int.tryParse(
+                controller.itemList?[index - 1].fetchedAt ?? "",
+              );
+            } catch (e) {
+              previousDate = null;
+            }
+            final chapterTile = ChapterMangaListTile(
+              chapterWithMangaDto: item,
+              updatePair: () async {
+                final chapter = await ref.refresh(
+                  chapterProvider(chapterId: item.id).future,
+                );
+                try {
+                  controller.itemList = [...?controller.itemList]
+                    ..replaceRange(index, index + 1, [
+                      item.copyWith(
+                        isDownloaded: chapter?.isDownloaded,
+                        lastPageRead: chapter?.lastPageRead,
+                      ),
+                    ]);
+                } catch (e) {
+                  //
+                }
+              },
+              isSelected: selectedChapters.value.containsKey(item.id),
+              canTapSelect: selectedChapters.value.isNotEmpty,
+              toggleSelect: (ChapterDto val) {
+                if ((val.id).isNull) return;
+                selectedChapters.value = (selectedChapters.value.toggleKey(
+                  val.id,
+                  val,
+                ));
+              },
+            );
+            if ((int.tryParse(item.fetchedAt)).isSameDayAs(previousDate)) {
+              return chapterTile;
+            } else {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(
+                      int.tryParse(
+                        item.fetchedAt,
+                      ).toDaysAgoFromSeconds(context),
+                    ),
+                  ),
+                  chapterTile,
+                ],
+              );
+            }
+          },
+        ),
+      ),
+    );
+
     return Scaffold(
       floatingActionButton:
           selectedChapters.value.isEmpty ? const UpdateStatusFab() : null,
@@ -105,83 +190,7 @@ class UpdatesScreen extends HookConsumerWidget {
               afterOptionSelected: () async => controller.refresh(),
             )
           : null,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          selectedChapters.value = ({});
-          controller.refresh();
-        },
-        child: PagedListView(
-          pagingController: controller,
-          builderDelegate: PagedChildBuilderDelegate<ChapterWithMangaDto>(
-            firstPageProgressIndicatorBuilder: (context) =>
-                const CenterSorayomiShimmerIndicator(),
-            firstPageErrorIndicatorBuilder: (context) => Emoticons(
-              title: controller.error.toString(),
-              button: TextButton(
-                onPressed: () => controller.refresh(),
-                child: Text(context.l10n.retry),
-              ),
-            ),
-            noItemsFoundIndicatorBuilder: (context) => Emoticons(
-              title: context.l10n.noUpdatesFound,
-              button: TextButton(
-                onPressed: () => controller.refresh(),
-                child: Text(context.l10n.refresh),
-              ),
-            ),
-            itemBuilder: (context, item, index) {
-              int? previousDate;
-              try {
-                previousDate = int.tryParse(
-                    controller.itemList?[index - 1].fetchedAt ?? "");
-              } catch (e) {
-                previousDate = null;
-              }
-              final chapterTile = ChapterMangaListTile(
-                chapterWithMangaDto: item,
-                updatePair: () async {
-                  final chapter = await ref
-                      .refresh(chapterProvider(chapterId: item.id).future);
-                  try {
-                    controller.itemList = [...?controller.itemList]
-                      ..replaceRange(index, index + 1, [
-                        item.copyWith(
-                          isDownloaded: chapter?.isDownloaded,
-                          lastPageRead: chapter?.lastPageRead,
-                        ),
-                      ]);
-                  } catch (e) {
-                    //
-                  }
-                },
-                isSelected: selectedChapters.value.containsKey(item.id),
-                canTapSelect: selectedChapters.value.isNotEmpty,
-                toggleSelect: (ChapterDto val) {
-                  if ((val.id).isNull) return;
-                  selectedChapters.value =
-                      (selectedChapters.value.toggleKey(val.id, val));
-                },
-              );
-              if ((int.tryParse(item.fetchedAt)).isSameDayAs(previousDate)) {
-                return chapterTile;
-              } else {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      title: Text(
-                        int.tryParse(item.fetchedAt)
-                            .toDaysAgoFromSeconds(context),
-                      ),
-                    ),
-                    chapterTile,
-                  ],
-                );
-              }
-            },
-          ),
-        ),
-      ),
+      body: updatesContent,
     );
   }
 }

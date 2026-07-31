@@ -19,80 +19,88 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final historyGroups = ref.watch(filteredHistoryGroupsProvider);
-    final historyState = ref.watch(readingHistoryProvider);
-    final searchQuery = ref.watch(historySearchQueryProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.history),
         actions: [
           IconButton(
+            tooltip: l10n.refresh,
             onPressed: () =>
                 ref.read(readingHistoryProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: SearchField(
-              initialText: searchQuery,
-              onChanged: (query) => ref
-                  .read(historySearchQueryProvider.notifier)
-                  .updateQuery(query ?? ''),
-              onSubmitted: (query) => ref
-                  .read(historySearchQueryProvider.notifier)
-                  .updateQuery(query ?? ''),
-              hintText: l10n.searchHistory,
-              autofocus: false,
-            ),
+      body: const HistoryContent(),
+    );
+  }
+}
+
+class HistoryContent extends ConsumerWidget {
+  const HistoryContent({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final historyGroups = ref.watch(filteredHistoryGroupsProvider);
+    final historyState = ref.watch(readingHistoryProvider);
+    final searchQuery = ref.watch(historySearchQueryProvider);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: SearchField(
+            initialText: searchQuery,
+            onChanged: (query) => ref
+                .read(historySearchQueryProvider.notifier)
+                .updateQuery(query ?? ''),
+            onSubmitted: (query) => ref
+                .read(historySearchQueryProvider.notifier)
+                .updateQuery(query ?? ''),
+            hintText: l10n.searchHistory,
+            autofocus: false,
           ),
-          // History content
-          Expanded(
-            child: historyState.when(
-              data: (data) {
-                if (data == null || data.isEmpty) {
-                  return const HistoryEmptyState();
-                }
+        ),
+        Expanded(
+          child: historyState.when(
+            data: (data) {
+              if (data == null || data.isEmpty) {
+                return const HistoryEmptyState();
+              }
 
-                if (historyGroups.isEmpty && searchQuery.isNotBlank) {
-                  return const HistoryNoSearchResults();
-                }
+              if (historyGroups.isEmpty && searchQuery.isNotBlank) {
+                return const HistoryNoSearchResults();
+              }
 
-                return RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(readingHistoryProvider.notifier).refresh(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: historyGroups.length,
-                    itemBuilder: (context, index) {
-                      final group = historyGroups[index];
-                      return HistoryGroupWidget(
-                        group: group,
-                        onRemoveItem: (chapterId) => ref
-                            .read(readingHistoryProvider.notifier)
-                            .removeFromHistory(chapterId),
-                      );
-                    },
-                  ),
-                );
-              },
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stack) => HistoryErrorState(
-                error: error,
-                onRetry: () =>
+              return RefreshIndicator(
+                onRefresh: () =>
                     ref.read(readingHistoryProvider.notifier).refresh(),
-              ),
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: historyGroups.length,
+                  itemBuilder: (context, index) {
+                    final group = historyGroups[index];
+                    return HistoryGroupWidget(
+                      group: group,
+                      onRemoveItem: (chapterId) => ref
+                          .read(readingHistoryProvider.notifier)
+                          .removeFromHistory(chapterId),
+                    );
+                  },
+                ),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => HistoryErrorState(
+              error: error,
+              onRetry: () =>
+                  ref.read(readingHistoryProvider.notifier).refresh(),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -109,9 +117,7 @@ class HistoryEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Emoticons(
-              iconData: Icons.history,
-            ),
+            const Emoticons(iconData: Icons.history),
             const SizedBox(height: 16),
             Text(
               l10n.noHistoryFound,
@@ -145,9 +151,7 @@ class HistoryNoSearchResults extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Emoticons(
-              iconData: Icons.search_off,
-            ),
+            const Emoticons(iconData: Icons.search_off),
             const SizedBox(height: 16),
             Text(
               l10n.noSearchResults,
@@ -188,9 +192,7 @@ class HistoryErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Emoticons(
-              iconData: Icons.error_outline,
-            ),
+            const Emoticons(iconData: Icons.error_outline),
             const SizedBox(height: 16),
             Text(
               l10n.errorOccurred,
@@ -206,10 +208,7 @@ class HistoryErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: Text(l10n.retry),
-            ),
+            ElevatedButton(onPressed: onRetry, child: Text(l10n.retry)),
           ],
         ),
       ),

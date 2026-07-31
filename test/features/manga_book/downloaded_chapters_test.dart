@@ -152,24 +152,26 @@ void main() {
     );
   });
 
-  test('downloaded manga route opens a dedicated manga page', () {
+  test('download routes open dedicated pages outside main navigation', () {
     const route = DownloadedMangaRoute(mangaId: 42);
 
     expect(route.location, '/downloads/manga/42');
 
     final quickSearchShell = $appRoutes.single as ShellRoute;
-    final navigationShell =
-        quickSearchShell.routes.whereType<StatefulShellRoute>().single;
-    final downloadsRoute = navigationShell.branches
-        .expand((branch) => branch.routes)
+    final downloadRoutes = quickSearchShell.routes
         .whereType<GoRoute>()
-        .singleWhere((route) => route.path == Routes.downloads);
+        .where(
+          (route) =>
+              route.path == Routes.downloads ||
+              route.path == Routes.downloadedManga,
+        )
+        .toList();
 
-    expect(downloadsRoute.routes, isEmpty);
-    expect(
-      quickSearchShell.routes.whereType<GoRoute>().map((route) => route.path),
-      contains(Routes.downloadedManga),
-    );
+    expect(downloadRoutes.map((route) => route.path), {
+      Routes.downloads,
+      Routes.downloadedManga,
+    });
+    expect(downloadRoutes.every((route) => route.routes.isEmpty), isTrue);
   });
 
   testWidgets('long press enters downloaded chapter multi-select mode', (

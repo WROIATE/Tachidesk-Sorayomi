@@ -62,7 +62,7 @@ class BigScreenNavigationBar extends StatelessWidget {
           ? NavigationRailLabelType.none
           : NavigationRailLabelType.all,
       leading: leadingIcon,
-      destinations: NavigationBarData.getNavList(context)
+      destinations: NavigationBarData.navList
           .map<NavigationRailDestination>(
               (e) => getNavigationRailDestination(context, e))
           .toList(),
