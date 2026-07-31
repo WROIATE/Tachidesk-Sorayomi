@@ -21,6 +21,12 @@ class SourceListTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isPinned = ref.watch(
+      pinnedSourceIdsProvider.select(
+        (sourceIds) => sourceIds?.contains(source.id) ?? false,
+      ),
+    );
+
     return ListTile(
       onTap: (() async {
         ref.read(sourceLastUsedProvider.notifier).update(source.id);
@@ -40,8 +46,11 @@ class SourceListTile extends ConsumerWidget {
       subtitle: (source.language?.displayName).isNotBlank
           ? Text(source.language?.displayName ?? "")
           : null,
-      trailing: (source.supportsLatest.ifNull())
-          ? TextButton(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (source.supportsLatest.ifNull())
+            TextButton(
               onPressed: () async {
                 ref.read(sourceLastUsedProvider.notifier).update(source.id);
                 SourceTypeRoute(
@@ -50,8 +59,19 @@ class SourceListTile extends ConsumerWidget {
                 ).go(context);
               },
               child: Text(context.l10n.latest),
-            )
-          : null,
+            ),
+          IconButton(
+            tooltip:
+                isPinned ? context.l10n.unpinSource : context.l10n.pinSource,
+            onPressed: () =>
+                ref.read(pinnedSourceIdsProvider.notifier).toggle(source.id),
+            icon: Icon(
+              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+              color: isPinned ? Theme.of(context).colorScheme.primary : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

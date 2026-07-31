@@ -32,6 +32,24 @@ class SearchField extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final controller = useTextEditingController(text: initialText);
+    final routeIsCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    final wasCoveredByRoute = useRef(false);
+
+    useEffect(() {
+      if (!routeIsCurrent) {
+        wasCoveredByRoute.value = true;
+      } else if (wasCoveredByRoute.value) {
+        wasCoveredByRoute.value = false;
+        // Modal routes restore their previously focused child when popped.
+        // Clear that restored focus before Android can reopen the keyboard.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            FocusScope.of(context).unfocus();
+          }
+        });
+      }
+      return null;
+    }, [routeIsCurrent]);
 
     final closeIcon = onClose != null
         ? IconButton(
@@ -50,6 +68,10 @@ class SearchField extends HookWidget {
         padding: KEdgeInsets.h16v4.size,
         child: TextField(
           onChanged: onChanged,
+          onTapOutside: (_) {
+            FocusScope.of(context).unfocus();
+            FocusManager.instance.applyFocusChangesIfNeeded();
+          },
           autofocus: autofocus,
           controller: controller,
           onSubmitted: onSubmitted,

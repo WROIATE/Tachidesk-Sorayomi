@@ -15,6 +15,8 @@ import '../../../domain/source/source_model.dart';
 
 part 'source_controller.g.dart';
 
+const pinnedSourceGroupKey = "pinned";
+
 @riverpod
 Future<List<SourceDto>?> sourceList(Ref ref) =>
     ref.watch(sourceRepositoryProvider).getSourceList();
@@ -99,4 +101,91 @@ class SourceLastUsed extends _$SourceLastUsed
     with SharedPreferenceClientMixin<String> {
   @override
   String? build() => initialize(DBKeys.sourceLastUsed);
+}
+
+@riverpod
+class PinnedSourceIds extends _$PinnedSourceIds
+    with SharedPreferenceClientMixin<List<String>> {
+  @override
+  List<String>? build() => initialize(DBKeys.pinnedSourceIds);
+
+  void toggle(String sourceId) {
+    final updatedSourceIds = {...?state};
+    if (!updatedSourceIds.remove(sourceId)) {
+      updatedSourceIds.add(sourceId);
+    }
+    update(updatedSourceIds.toList());
+  }
+}
+
+Map<String, List<SourceDto>> buildSourceSectionsForDisplay(
+  Map<String, List<SourceDto>> sourceMap,
+  Set<String> pinnedSourceIds,
+) {
+  final sourceGroups = sourceMap.map(
+    (key, value) => MapEntry(key, [...value]),
+  );
+  final lastUsed = sourceGroups.remove("lastUsed");
+  final allSources = sourceGroups.remove("all");
+  final localSources = sourceGroups.remove("localsourcelang");
+  final sourcesById = <String, SourceDto>{};
+
+  void indexSources(List<SourceDto>? sources) {
+    for (final source in sources ?? const <SourceDto>[]) {
+      sourcesById[source.id] = source;
+    }
+  }
+
+  for (final sources in sourceGroups.values) {
+    indexSources(sources);
+  }
+  indexSources(allSources);
+  indexSources(localSources);
+  indexSources(lastUsed);
+
+  final lastUsedSource = lastUsed?.firstOrNull;
+  final pinnedSources = sourcesById.values
+      .where(
+        (source) =>
+            pinnedSourceIds.contains(source.id) &&
+            source.id != lastUsedSource?.id,
+      )
+      .toList()
+    ..sort(_compareSourcesByName);
+  final promotedSourceIds = {
+    if (lastUsedSource != null) lastUsedSource.id,
+    ...pinnedSources.map((source) => source.id),
+  };
+  final sections = <String, List<SourceDto>>{};
+
+  if (lastUsedSource != null) {
+    sections["lastUsed"] = [lastUsedSource];
+  }
+  if (pinnedSources.isNotEmpty) {
+    sections[pinnedSourceGroupKey] = pinnedSources;
+  }
+
+  void addVisibleSection(String key, List<SourceDto>? sources) {
+    final visibleSources = sources
+        ?.where((source) => !promotedSourceIds.contains(source.id))
+        .toList();
+    if (visibleSources?.isNotEmpty == true) {
+      sections[key] = visibleSources!;
+    }
+  }
+
+  addVisibleSection("all", allSources);
+  for (final entry in sourceGroups.entries) {
+    addVisibleSection(entry.key, entry.value);
+  }
+  addVisibleSection("localsourcelang", localSources);
+
+  return sections;
+}
+
+int _compareSourcesByName(SourceDto first, SourceDto second) {
+  final nameComparison =
+      first.name.toLowerCase().compareTo(second.name.toLowerCase());
+  if (nameComparison != 0) return nameComparison;
+  return first.id.compareTo(second.id);
 }

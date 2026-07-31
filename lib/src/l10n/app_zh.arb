@@ -1394,5 +1394,10 @@
   "searchingAllSources": "正在搜索所有可用来源...",
   "@searchingAllSources": {},
   "noMatchingMangaFound": "在任何来源中未找到匹配的漫画",
-  "@noMatchingMangaFound": {}
+  "@noMatchingMangaFound": {},
+  "pinnedSources": "置顶图源",
+  "allSources": "全部图源",
+  "pinSource": "置顶图源",
+  "unpinSource": "取消置顶",
+  "noPinnedSources": "没有置顶图源"
 }

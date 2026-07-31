@@ -83,6 +83,7 @@ class SourceMangaListScreen extends HookConsumerWidget {
 
     final query = useState(initialQuery);
     final showSearch = useState(initialQuery.isNotBlank);
+    final autofocusSearch = useState(false);
     final controller = usePagingController<int, MangaDto>(firstPageKey: 1);
 
     useEffect(() {
@@ -104,7 +105,10 @@ class SourceMangaListScreen extends HookConsumerWidget {
           title: Text(data?.displayName ?? context.l10n.source),
           actions: [
             IconButton(
-              onPressed: () => showSearch.value = true,
+              onPressed: () {
+                autofocusSearch.value = true;
+                showSearch.value = true;
+              },
               icon: const Icon(Icons.search_rounded),
             ),
             const SourceMangaDisplayIconPopup(),
@@ -163,7 +167,11 @@ class SourceMangaListScreen extends HookConsumerWidget {
                     alignment: Alignment.centerRight,
                     child: SearchField(
                       initialText: query.value,
-                      onClose: () => showSearch.value = (false),
+                      autofocus: autofocusSearch.value,
+                      onClose: () {
+                        autofocusSearch.value = false;
+                        showSearch.value = false;
+                      },
                       onSubmitted: (val) {
                         if (sourceType == SourceType.SEARCH) {
                           query.value = (val);

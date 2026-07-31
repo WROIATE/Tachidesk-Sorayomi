@@ -22,13 +22,23 @@ class GlobalSearchScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final query = useState(initialQuery);
-    final quickSearchResult =
-        ref.watch(quickSearchResultsProvider(query: query.value));
+    final pinnedSourceIds = ref.watch(pinnedSourceIdsProvider);
+    final sourceFilter = useState(
+      pinnedSourceIds.isBlank
+          ? GlobalSearchSourceFilter.all
+          : GlobalSearchSourceFilter.pinned,
+    );
+    final quickSearchResult = ref.watch(
+      quickSearchResultsProvider(
+        query: query.value,
+        sourceFilter: sourceFilter.value,
+      ),
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(context.l10n.globalSearch),
         bottom: PreferredSize(
-          preferredSize: kCalculateAppBarBottomSize([true]),
+          preferredSize: kCalculateAppBarBottomSize([true, true]),
           child: Column(
             children: [
               Align(
@@ -38,6 +48,10 @@ class GlobalSearchScreen extends HookConsumerWidget {
                   onSubmitted: (value) => query.value = value,
                 ),
               ),
+              _SourceFilterChips(
+                sourceFilter: sourceFilter.value,
+                onChanged: (value) => sourceFilter.value = value,
+              ),
             ],
           ),
         ),
@@ -46,10 +60,19 @@ class GlobalSearchScreen extends HookConsumerWidget {
         context,
         (data) => data.isBlank
             ? Emoticons(
-                title: context.l10n.noSourcesFound,
+                title: sourceFilter.value == GlobalSearchSourceFilter.pinned
+                    ? context.l10n.noPinnedSources
+                    : context.l10n.noSourcesFound,
                 button: TextButton(
-                  onPressed: () => ref.invalidate(sourceListProvider),
-                  child: Text(context.l10n.refresh),
+                  onPressed: sourceFilter.value ==
+                          GlobalSearchSourceFilter.pinned
+                      ? () => sourceFilter.value = GlobalSearchSourceFilter.all
+                      : () => ref.invalidate(sourceListProvider),
+                  child: Text(
+                    sourceFilter.value == GlobalSearchSourceFilter.pinned
+                        ? context.l10n.allSources
+                        : context.l10n.refresh,
+                  ),
                 ),
               )
             : ListView.builder(
@@ -62,6 +85,46 @@ class GlobalSearchScreen extends HookConsumerWidget {
                 },
                 itemCount: data.length,
               ),
+      ),
+    );
+  }
+}
+
+class _SourceFilterChips extends StatelessWidget {
+  const _SourceFilterChips({
+    required this.sourceFilter,
+    required this.onChanged,
+  });
+
+  final GlobalSearchSourceFilter sourceFilter;
+  final ValueChanged<GlobalSearchSourceFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: kAppBarBottomHeight,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: KEdgeInsets.h16.size,
+        child: Row(
+          children: [
+            FilterChip(
+              selected: sourceFilter == GlobalSearchSourceFilter.pinned,
+              showCheckmark: false,
+              avatar: const Icon(Icons.push_pin_outlined, size: 18),
+              label: Text(context.l10n.pinnedSources),
+              onSelected: (_) => onChanged(GlobalSearchSourceFilter.pinned),
+            ),
+            const SizedBox(width: 8),
+            FilterChip(
+              selected: sourceFilter == GlobalSearchSourceFilter.all,
+              showCheckmark: false,
+              avatar: const Icon(Icons.done_all_rounded, size: 18),
+              label: Text(context.l10n.allSources),
+              onSelected: (_) => onChanged(GlobalSearchSourceFilter.all),
+            ),
+          ],
+        ),
       ),
     );
   }

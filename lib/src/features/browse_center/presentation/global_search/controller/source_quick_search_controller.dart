@@ -21,6 +21,8 @@ typedef QuickSearchResults = ({
   AsyncValue<List<MangaDto>> mangaList
 });
 
+enum GlobalSearchSourceFilter { pinned, all }
+
 @riverpod
 Future<List<MangaDto>> sourceQuickSearchMangaList(
   Ref ref,
@@ -39,14 +41,21 @@ Future<List<MangaDto>> sourceQuickSearchMangaList(
 }
 
 @riverpod
-AsyncValue<List<QuickSearchResults>> quickSearchResults(Ref ref,
-    {String? query}) {
+AsyncValue<List<QuickSearchResults>> quickSearchResults(
+  Ref ref, {
+  String? query,
+  required GlobalSearchSourceFilter sourceFilter,
+}) {
   final sourceMapData = ref.watch(sourceMapFilteredProvider);
+  final pinnedSourceIds = {
+    ...?ref.watch(pinnedSourceIdsProvider),
+  };
 
   final sourceMap = {...?sourceMapData.valueOrNull}..remove("lastUsed");
-  final sourceList = sourceMap.values.fold(
-    <SourceDto>[],
-    (prev, cur) => [...prev, ...cur],
+  final sourceList = filterAndSortGlobalSearchSources(
+    sourceMap.values.expand((sources) => sources),
+    pinnedSourceIds,
+    sourceFilter,
   );
   final List<QuickSearchResults> sourceMangaListPairList = [];
   for (SourceDto source in sourceList) {
@@ -59,4 +68,34 @@ AsyncValue<List<QuickSearchResults>> quickSearchResults(Ref ref,
   }
 
   return sourceMapData.copyWithData((_) => sourceMangaListPairList);
+}
+
+List<SourceDto> filterAndSortGlobalSearchSources(
+  Iterable<SourceDto> sources,
+  Set<String> pinnedSourceIds,
+  GlobalSearchSourceFilter sourceFilter,
+) {
+  final uniqueSources = <String, SourceDto>{
+    for (final source in sources) source.id: source,
+  }.values;
+  final filteredSources = uniqueSources
+      .where(
+        (source) =>
+            sourceFilter == GlobalSearchSourceFilter.all ||
+            pinnedSourceIds.contains(source.id),
+      )
+      .toList()
+    ..sort((first, second) {
+      final firstIsPinned = pinnedSourceIds.contains(first.id);
+      final secondIsPinned = pinnedSourceIds.contains(second.id);
+      if (firstIsPinned != secondIsPinned) {
+        return firstIsPinned ? -1 : 1;
+      }
+      final nameComparison =
+          first.name.toLowerCase().compareTo(second.name.toLowerCase());
+      if (nameComparison != 0) return nameComparison;
+      return first.id.compareTo(second.id);
+    });
+
+  return filteredSources;
 }

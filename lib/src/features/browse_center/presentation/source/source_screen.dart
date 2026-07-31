@@ -21,11 +21,11 @@ class SourceScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sourceMapData = ref.watch(sourceMapFilteredProvider);
-
-    final sourceMap = {...?sourceMapData.valueOrNull};
-    final localSource = sourceMap.remove("localsourcelang");
-    final lastUsed = sourceMap.remove("lastUsed");
-    final allSource = sourceMap.remove("all");
+    final pinnedSourceIds = ref.watch(pinnedSourceIdsProvider);
+    final sourceSections = buildSourceSectionsForDisplay(
+      {...?sourceMapData.valueOrNull},
+      {...?pinnedSourceIds},
+    );
 
     refresh() => ref.refresh(sourceListProvider.future);
     useEffect(() {
@@ -44,7 +44,7 @@ class SourceScreen extends HookConsumerWidget {
     return sourceMapData.showUiWhenData(
       context,
       (data) {
-        if ((sourceMap.isEmpty && localSource.isBlank && lastUsed.isBlank)) {
+        if (sourceSections.isEmpty) {
           return Emoticons(
             title: context.l10n.noSourcesFound,
             button: TextButton(
@@ -57,55 +57,24 @@ class SourceScreen extends HookConsumerWidget {
           onRefresh: refresh,
           child: CustomScrollView(
             slivers: [
-              if (lastUsed.isNotBlank) ...[
+              for (final section in sourceSections.entries) ...[
                 SliverToBoxAdapter(
                   child: ListTile(
-                    title: Text(languageMap["lastUsed"]?.displayName ?? ""),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                    child: SourceListTile(source: lastUsed!.first))
-              ],
-              if (allSource.isNotBlank) ...[
-                SliverToBoxAdapter(
-                  child: ListTile(
-                    title: Text(languageMap["all"]?.displayName ?? ""),
+                    title: Text(
+                      section.key == pinnedSourceGroupKey
+                          ? context.l10n.pinnedSources
+                          : languageMap[section.key]?.displayName ??
+                              section.key,
+                    ),
                   ),
                 ),
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => SourceListTile(
-                      source: allSource![index],
+                      source: section.value[index],
                     ),
-                    childCount: allSource?.length,
+                    childCount: section.value.length,
                   ),
-                )
-              ],
-              for (final k in sourceMap.keys) ...[
-                if (sourceMap[k].isNotBlank) ...[
-                  SliverToBoxAdapter(
-                    child:
-                        ListTile(title: Text(languageMap[k]?.displayName ?? k)),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => SourceListTile(
-                        source: sourceMap[k]![index],
-                      ),
-                      childCount: sourceMap[k]?.length,
-                    ),
-                  )
-                ]
-              ],
-              if (localSource.isNotBlank) ...[
-                SliverToBoxAdapter(
-                  child: ListTile(
-                    title:
-                        Text(languageMap["localsourcelang"]?.displayName ?? ""),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: SourceListTile(source: localSource!.first),
                 )
               ],
             ],

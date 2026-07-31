@@ -1238,5 +1238,10 @@
   "parallelSourceRequest": "並行來源請求數量",
   "@parallelSourceRequest": {
     "description": "Text for Parallel source requests property"
-  }
+  },
+  "pinnedSources": "已釘選圖源",
+  "allSources": "全部圖源",
+  "pinSource": "釘選圖源",
+  "unpinSource": "取消釘選",
+  "noPinnedSources": "沒有已釘選圖源"
 }

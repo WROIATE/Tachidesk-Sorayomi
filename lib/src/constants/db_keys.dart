@@ -16,6 +16,7 @@ enum DBKeys {
   sourceLanguageFilter(["all", "lastUsed", "en", "localsourcelang"]),
   extensionLanguageFilter(["installed", "update", "en", "all"]),
   sourceLastUsed(null),
+  pinnedSourceIds(<String>[]),
   themeMode(ThemeMode.system),
   isTrueBlack(false),
   authType(AuthType.none),
