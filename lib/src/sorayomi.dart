@@ -16,7 +16,14 @@ import 'features/settings/widgets/app_theme_mode_tile/app_theme_mode_tile.dart';
 import 'global_providers/global_providers.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'routes/router_config.dart';
+import 'routes/shared_axis_page_transitions.dart';
 import 'utils/extensions/custom_extensions.dart';
+
+const _pageTransitionsTheme = PageTransitionsTheme(
+  builders: {
+    TargetPlatform.android: SharedAxisXPageTransitionsBuilder(),
+  },
+);
 
 class Sorayomi extends ConsumerWidget {
   const Sorayomi({super.key});
@@ -40,6 +47,7 @@ class Sorayomi extends ConsumerWidget {
           useMaterial3: true,
           useMaterial3ErrorColors: true,
         ).copyWith(
+          pageTransitionsTheme: _pageTransitionsTheme,
           tabBarTheme: const TabBarThemeData(tabAlignment: TabAlignment.center),
         ),
         darkTheme: FlexThemeData.dark(
@@ -48,6 +56,7 @@ class Sorayomi extends ConsumerWidget {
           useMaterial3ErrorColors: true,
           darkIsTrueBlack: isTrueBlack.ifNull(),
         ).copyWith(
+          pageTransitionsTheme: _pageTransitionsTheme,
           tabBarTheme: const TabBarThemeData(tabAlignment: TabAlignment.center),
         ),
         themeMode: themeMode ?? ThemeMode.system,
