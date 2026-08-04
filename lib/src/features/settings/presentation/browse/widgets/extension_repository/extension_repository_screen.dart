@@ -27,6 +27,7 @@ class ExtensionRepositoryScreen extends ConsumerWidget {
         onPressed: () async {
           String? newUrl = await showDialog<String?>(
             context: context,
+            useRootNavigator: false,
             builder: (context) => TextFieldDialog(
               title: context.l10n.extensionRepository,
               hintText:

@@ -37,6 +37,7 @@ class AuthenticationSection extends ConsumerWidget {
             onTap: () {
               showDialog(
                 context: context,
+                useRootNavigator: false,
                 builder: (context) => const CredentialsPopup(),
               );
             },
@@ -66,6 +67,7 @@ class AuthenticationSection extends ConsumerWidget {
                 : () {
                     showDialog(
                       context: context,
+                      useRootNavigator: false,
                       builder: (context) => const UiLoginPopup(),
                     );
                   },

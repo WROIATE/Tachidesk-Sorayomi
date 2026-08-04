@@ -27,6 +27,7 @@ class AuthTypeTile extends ConsumerWidget {
       title: Text(context.l10n.authType),
       onTap: () => showDialog(
         context: context,
+        useRootNavigator: false,
         builder: (context) => RadioListPopup<AuthType>(
           title: context.l10n.authType,
           optionList: AuthType.values,

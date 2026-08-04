@@ -30,6 +30,7 @@ class GeneralScreen extends ConsumerWidget {
             subtitle: Text(getLanguageNameFormLocale(context.currentLocale)),
             onTap: () => showDialog(
               context: context,
+              useRootNavigator: false,
               builder: (context) => RadioListPopup<Locale>(
                 title: context.l10n.appLanguage,
                 optionList: AppLocalizations.supportedLocales,

@@ -47,6 +47,7 @@ class AppThemeModeTile extends ConsumerWidget {
       title: Text(context.l10n.appTheme),
       onTap: () => showDialog(
         context: context,
+        useRootNavigator: false,
         builder: (context) => RadioListPopup<ThemeMode>(
           title: context.l10n.appTheme,
           optionList: ThemeMode.values,

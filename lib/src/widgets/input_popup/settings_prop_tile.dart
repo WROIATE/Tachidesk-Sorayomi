@@ -70,6 +70,7 @@ class SettingsPropTile extends StatelessWidget {
             type.onChanged != null,
             () => showDialog(
               context: context,
+              useRootNavigator: false,
               builder: (context) => SettingsPropPopUp(
                 title: title,
                 description: description,

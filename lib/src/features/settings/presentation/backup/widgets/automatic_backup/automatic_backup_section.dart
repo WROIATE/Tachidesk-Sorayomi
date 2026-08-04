@@ -53,6 +53,7 @@ class AutomaticBackupSection extends ConsumerWidget {
                   initialTime: data.backupTime.toTimeOfDay ??
                       const TimeOfDay(hour: 0, minute: 0),
                   context: context,
+                  useRootNavigator: false,
                 );
                 if (backupTime != null) {
                   final result = await AppUtils.guard(

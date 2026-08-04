@@ -67,6 +67,7 @@ class BackupAndRestoreSection extends HookConsumerWidget {
     if (validateResult.valueOrNull.isNotBlank && context.mounted) {
       restoreBackup = (await showDialog<bool>(
         context: context,
+        useRootNavigator: false,
         builder: (context) =>
             BackupMissingDialog(backupMissing: validateResult.valueOrNull!),
       ))
@@ -115,6 +116,7 @@ class BackupAndRestoreSection extends HookConsumerWidget {
           onTap: () {
             showDialog(
               context: context,
+              useRootNavigator: false,
               builder: (context) => const CreateBackupDialog(),
             );
           },

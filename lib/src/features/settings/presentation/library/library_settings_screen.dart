@@ -126,6 +126,7 @@ class LibrarySettingsScreen extends ConsumerWidget {
                     ),
                     onTap: () => showDialog(
                       context: context,
+                      useRootNavigator: false,
                       builder: (context) => const SkipUpdatingEntriesPopup(),
                     ),
                   ),

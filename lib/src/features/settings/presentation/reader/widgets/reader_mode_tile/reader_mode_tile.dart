@@ -36,6 +36,7 @@ class ReaderModeTile extends ConsumerWidget {
       title: Text(context.l10n.readerMode),
       onTap: () => showDialog(
         context: context,
+        useRootNavigator: false,
         builder: (context) => RadioListPopup<ReaderMode>(
           title: context.l10n.readerMode,
           optionList: ReaderMode.values.sublist(1),

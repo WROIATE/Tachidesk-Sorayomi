@@ -57,19 +57,22 @@ class MangaDescription extends HookConsumerWidget {
                     } else {
                       await removeMangaFromLibrary();
                     }
-                    await refresh();
+                    if (isAddingToLibrary && context.mounted) {
+                      await showDialog<void>(
+                        context: context,
+                        useRootNavigator: false,
+                        builder: (_) => EditMangaCategoryDialog(
+                          mangaId: manga.id,
+                          title: manga.title,
+                        ),
+                      );
+                    }
+                    if (context.mounted) {
+                      await refresh();
+                    }
                   });
                   if (context.mounted) {
                     val.showToastOnError(ref.read(toastProvider));
-                  }
-                  if (isAddingToLibrary && !val.hasError && context.mounted) {
-                    await showDialog<void>(
-                      context: context,
-                      builder: (_) => EditMangaCategoryDialog(
-                        mangaId: manga.id,
-                        title: manga.title,
-                      ),
-                    );
                   }
                 },
                 isPrimary: manga.inLibrary.ifNull(),

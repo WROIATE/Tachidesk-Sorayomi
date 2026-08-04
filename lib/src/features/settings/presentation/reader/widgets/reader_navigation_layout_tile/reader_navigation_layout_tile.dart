@@ -40,6 +40,7 @@ class ReaderNavigationLayoutTile extends ConsumerWidget {
       title: Text(context.l10n.readerNavigationLayout),
       onTap: () => showDialog(
         context: context,
+        useRootNavigator: false,
         builder: (context) => RadioListPopup<ReaderNavigationLayout>(
           title: context.l10n.readerNavigationLayout,
           optionList: ReaderNavigationLayout.values.sublist(1),
