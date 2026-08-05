@@ -17,6 +17,12 @@ class SettingsRepository {
   Future<SettingsDto?> getServerSettings() => ferryClient
       .query$ServerSettings(Options$Query$ServerSettings())
       .getData((data) => data.settings);
+
+  Future<void> clearCachedImages() async {
+    await ferryClient
+        .mutate$ClearCachedImages(Options$Mutation$ClearCachedImages())
+        .getData((data) => data.clearCachedImages);
+  }
 }
 
 @riverpod

@@ -5,3 +5,10 @@ query ServerSettings {
         ...SettingsDto
     }
 }
+
+mutation ClearCachedImages {
+    clearCachedImages(input: {cachedPages: true, cachedThumbnails: true}) {
+        cachedPages
+        cachedThumbnails
+    }
+}
