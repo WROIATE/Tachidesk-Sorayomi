@@ -51,6 +51,29 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
     }
   }
 
+  Future<void> _confirmAndClearCache() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.clearCache),
+        content: Text(dialogContext.l10n.clearCacheDescription),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(dialogContext.l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(dialogContext.l10n.clearCache),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) await _clearCache();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -64,7 +87,7 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : null,
-      onTap: _isClearing ? null : _clearCache,
+      onTap: _isClearing ? null : _confirmAndClearCache,
     );
   }
 }
