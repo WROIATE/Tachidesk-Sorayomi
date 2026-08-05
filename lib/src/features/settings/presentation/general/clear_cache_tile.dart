@@ -12,15 +12,17 @@ import '../../../../utils/extensions/custom_extensions.dart';
 import '../../../../utils/misc/toast/toast.dart';
 import '../../data/settings_repository.dart';
 
-class ClearCacheTile extends ConsumerStatefulWidget {
-  const ClearCacheTile({super.key});
+class ClearCacheTiles extends ConsumerStatefulWidget {
+  const ClearCacheTiles({super.key});
 
   @override
-  ConsumerState<ClearCacheTile> createState() => _ClearCacheTileState();
+  ConsumerState<ClearCacheTiles> createState() => _ClearCacheTilesState();
 }
 
-class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
-  bool _isClearing = false;
+enum _CacheTarget { server, client }
+
+class _ClearCacheTilesState extends ConsumerState<ClearCacheTiles> {
+  _CacheTarget? _clearingTarget;
 
   Future<void> _clearLocalImageCache() async {
     await DefaultCacheManager().emptyCache();
@@ -29,20 +31,21 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
       ..clearLiveImages();
   }
 
-  Future<void> _clearCache() async {
-    if (_isClearing) return;
+  Future<void> _clearCache(_CacheTarget target) async {
+    if (_clearingTarget != null) return;
 
-    setState(() => _isClearing = true);
+    setState(() => _clearingTarget = target);
     final toast = ref.read(toastProvider);
     final result = await AsyncValue.guard(
-      () => Future.wait([
-        ref.read(settingsRepositoryProvider).clearCachedImages(),
-        _clearLocalImageCache(),
-      ]),
+      () => switch (target) {
+        _CacheTarget.server =>
+          ref.read(settingsRepositoryProvider).clearCachedImages(),
+        _CacheTarget.client => _clearLocalImageCache(),
+      },
     );
 
     if (!mounted) return;
-    setState(() => _isClearing = false);
+    setState(() => _clearingTarget = null);
 
     if (result.hasError) {
       result.showToastOnError(toast);
@@ -51,13 +54,13 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
     }
   }
 
-  Future<void> _confirmAndClearCache() async {
+  Future<void> _confirmAndClearCache(_CacheTarget target) async {
     final confirmed = await showDialog<bool>(
       context: context,
       useRootNavigator: false,
       builder: (dialogContext) => AlertDialog(
-        title: Text(dialogContext.l10n.clearCache),
-        content: Text(dialogContext.l10n.clearCacheDescription),
+        title: Text(_title(dialogContext, target)),
+        content: Text(_description(dialogContext, target)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -71,23 +74,52 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
       ),
     );
 
-    if (confirmed == true && mounted) await _clearCache();
+    if (confirmed == true && mounted) await _clearCache(target);
   }
 
-  @override
-  Widget build(BuildContext context) {
+  String _title(BuildContext context, _CacheTarget target) => switch (target) {
+        _CacheTarget.server => context.l10n.clearServerCache,
+        _CacheTarget.client => context.l10n.clearClientCache,
+      };
+
+  String _description(BuildContext context, _CacheTarget target) =>
+      switch (target) {
+        _CacheTarget.server => context.l10n.clearServerCacheDescription,
+        _CacheTarget.client => context.l10n.clearClientCacheDescription,
+      };
+
+  Widget _buildTile(BuildContext context, _CacheTarget target) {
+    final isClearing = _clearingTarget == target;
+    final isEnabled = _clearingTarget == null;
+
     return ListTile(
-      enabled: !_isClearing,
-      leading: const Icon(Icons.cleaning_services_rounded),
-      title: Text(context.l10n.clearCache),
-      subtitle: Text(context.l10n.clearCacheDescription),
-      trailing: _isClearing
+      enabled: isEnabled,
+      leading: Icon(
+        switch (target) {
+          _CacheTarget.server => Icons.dns_rounded,
+          _CacheTarget.client => Icons.phone_android_rounded,
+        },
+      ),
+      title: Text(_title(context, target)),
+      subtitle: Text(_description(context, target)),
+      trailing: isClearing
           ? const SizedBox.square(
               dimension: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : null,
-      onTap: _isClearing ? null : _confirmAndClearCache,
+      onTap: isEnabled ? () => _confirmAndClearCache(target) : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildTile(context, _CacheTarget.server),
+        _buildTile(context, _CacheTarget.client),
+      ],
     );
   }
 }

@@ -691,9 +691,21 @@
   "@clearCache": {
     "description": "Button text for clear cache in General Settings screen"
   },
-  "clearCacheDescription": "同時清除伺服器和客戶端圖片快取",
-  "@clearCacheDescription": {
-    "description": "Description text for clear cache in General Settings screen"
+  "clearServerCache": "清除伺服器快取",
+  "@clearServerCache": {
+    "description": "Button text for clearing server cache in General Settings screen"
+  },
+  "clearServerCacheDescription": "清除伺服器的頁面和封面圖片快取",
+  "@clearServerCacheDescription": {
+    "description": "Description text for clearing server cache in General Settings screen"
+  },
+  "clearClientCache": "清除客戶端快取",
+  "@clearClientCache": {
+    "description": "Button text for clearing client cache in General Settings screen"
+  },
+  "clearClientCacheDescription": "清除本機磁碟和記憶體圖片快取",
+  "@clearClientCacheDescription": {
+    "description": "Description text for clearing client cache in General Settings screen"
   },
   "search": "搜尋",
   "@search": {

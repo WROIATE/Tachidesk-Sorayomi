@@ -6,8 +6,7 @@ import 'package:tachidesk_sorayomi/src/features/settings/presentation/general/cl
 import 'package:tachidesk_sorayomi/src/l10n/generated/app_localizations.dart';
 
 void main() {
-  testWidgets('clear cache asks for confirmation before starting',
-      (tester) async {
+  Future<void> pumpClearCacheTiles(WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
@@ -19,12 +18,16 @@ void main() {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: ClearCacheTile()),
+          home: Scaffold(body: ClearCacheTiles()),
         ),
       ),
     );
+  }
 
-    await tester.tap(find.text('清除缓存'));
+  testWidgets('server cache clearing asks for confirmation', (tester) async {
+    await pumpClearCacheTiles(tester);
+
+    await tester.tap(find.text('清除服务端缓存'));
     await tester.pumpAndSettle();
 
     final dialog = find.byType(AlertDialog);
@@ -32,7 +35,30 @@ void main() {
     expect(
       find.descendant(
         of: dialog,
-        matching: find.text('同时清除服务端和客户端图片缓存'),
+        matching: find.text('清除服务端页面和封面图片缓存'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+
+    expect(dialog, findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('client cache clearing asks for confirmation', (tester) async {
+    await pumpClearCacheTiles(tester);
+
+    await tester.tap(find.text('清除客户端缓存'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(AlertDialog);
+    expect(dialog, findsOneWidget);
+    expect(
+      find.descendant(
+        of: dialog,
+        matching: find.text('清除本机磁盘和内存图片缓存'),
       ),
       findsOneWidget,
     );

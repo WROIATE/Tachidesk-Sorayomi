@@ -45,7 +45,7 @@ class GeneralScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const ClearCacheTile(),
+          const ClearCacheTiles(),
           const QuickSearchToggleTile(),
           const TimeoutSettingsSection(),
         ],
