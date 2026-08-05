@@ -997,6 +997,7 @@
     "checkForServerUpdates": "Check for Server updates",
     "checkForUpdates": "Check for updates",
     "clearCache": "Clear Cache",
+    "clearCacheDescription": "Clears image caches on both the server and this client",
     "client": "Client",
     "clientVersion": "Client version",
     "close": "Close",

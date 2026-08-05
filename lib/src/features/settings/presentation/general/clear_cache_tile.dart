@@ -57,6 +57,7 @@ class _ClearCacheTileState extends ConsumerState<ClearCacheTile> {
       enabled: !_isClearing,
       leading: const Icon(Icons.cleaning_services_rounded),
       title: Text(context.l10n.clearCache),
+      subtitle: Text(context.l10n.clearCacheDescription),
       trailing: _isClearing
           ? const SizedBox.square(
               dimension: 24,

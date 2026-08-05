@@ -691,6 +691,10 @@
   "@clearCache": {
     "description": "Button text for clear cache in General Settings screen"
   },
+  "clearCacheDescription": "同時清除伺服器和客戶端圖片快取",
+  "@clearCacheDescription": {
+    "description": "Description text for clear cache in General Settings screen"
+  },
   "search": "搜尋",
   "@search": {
     "description": "Search field hint Text"

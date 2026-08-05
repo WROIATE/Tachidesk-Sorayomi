@@ -801,6 +801,10 @@
   "@clearCache": {
     "description": "Button text for clear cache in General Settings screen"
   },
+  "clearCacheDescription": "同时清除服务端和客户端图片缓存",
+  "@clearCacheDescription": {
+    "description": "Description text for clear cache in General Settings screen"
+  },
   "cacheCleared": "已清除缓存",
   "@cacheCleared": {
     "description": "Toast Text to show after clearing cache"
