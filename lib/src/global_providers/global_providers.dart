@@ -29,9 +29,12 @@ import '../utils/network/timeout_http_client.dart';
 
 part 'global_providers.g.dart';
 
+int _serverRequestTimeoutMs(Ref ref) =>
+    ref.watch(serverRequestTimeoutProvider) ??
+    DBKeys.serverRequestTimeout.initial as int;
+
 Link _createGraphQlHttpLink(Ref ref) {
-  final timeoutMs = ref.watch(serverRequestTimeoutProvider) ??
-      DBKeys.serverRequestTimeout.initial as int;
+  final timeoutMs = _serverRequestTimeoutMs(ref);
   final autoRetry = ref.watch(autoRefreshOnTimeoutProvider).ifNull();
   final retryDelayMs = ref.watch(autoRefreshRetryDelayProvider) ??
       DBKeys.autoRefreshRetryDelay.initial as int;
@@ -67,6 +70,7 @@ GraphQLClient _createGraphQlClient(Ref ref, Link link) => GraphQLClient(
       defaultPolicies: DefaultPolicies(
         query: Policies(fetch: FetchPolicy.noCache),
       ),
+      queryRequestTimeout: Duration(milliseconds: _serverRequestTimeoutMs(ref)),
       cache: GraphQLCache(store: ref.watch(hiveStoreProvider)),
     );
 
