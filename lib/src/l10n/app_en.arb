@@ -1359,5 +1359,19 @@
     "allSources": "All sources",
     "pinSource": "Pin source",
     "unpinSource": "Unpin source",
-    "noPinnedSources": "No pinned sources"
+    "noPinnedSources": "No pinned sources",
+    "autoPageTurnInterval": "Auto page turn interval",
+    "autoPageTurnIntervalValue": "{seconds} s",
+    "@autoPageTurnIntervalValue": {
+        "placeholders": {
+            "seconds": {
+                "type": "String"
+            }
+        }
+    },
+    "autoPageTurnTransition": "Auto page turn effect",
+    "autoPageTurnTransitionSmooth": "Smooth page turn",
+    "autoPageTurnTransitionFade": "Fade in and out",
+    "startAutoPageTurn": "Start auto page turn",
+    "pauseAutoPageTurn": "Pause auto page turn"
 }

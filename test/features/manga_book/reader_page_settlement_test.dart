@@ -102,7 +102,7 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
-      'readerOverlay': false,
+      'readerOverlay': true,
       'swipeToggle': false,
       'lastPageSwipeEnabled': false,
     });
@@ -138,7 +138,96 @@ void main() {
 
     expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
     expect(_serverImage(tester, '/page-2').isAnimationActive, isFalse);
+    expect(
+      find.byKey(const ValueKey('auto-page-turn-toggle')),
+      findsNothing,
+    );
   });
+
+  testWidgets('paged reader automatically advances with a smooth transition', (
+    tester,
+  ) async {
+    await _pumpAutoPageTurnReader(tester, transitionIndex: 0);
+
+    await tester.tap(find.byKey(const ValueKey('auto-page-turn-toggle')));
+    await tester.pump();
+
+    expect(find.byIcon(Icons.pause_circle_outline_rounded), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final controller =
+        tester.widget<PageView>(find.byType(PageView)).controller!;
+    expect(controller.page, inExclusiveRange(0, 1));
+
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(_readerIndex(tester), 1);
+    expect(find.byIcon(Icons.play_circle_outline_rounded), findsOneWidget);
+  });
+
+  testWidgets('paged reader can fade between automatically advanced pages', (
+    tester,
+  ) async {
+    await _pumpAutoPageTurnReader(tester, transitionIndex: 1);
+
+    await tester.tap(find.byKey(const ValueKey('auto-page-turn-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(_autoPageTurnFade(tester).opacity, 0);
+    expect(_readerIndex(tester), 0);
+
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
+
+    expect(_autoPageTurnFade(tester).opacity, 1);
+    expect(_readerIndex(tester), 1);
+    expect(find.byIcon(Icons.play_circle_outline_rounded), findsOneWidget);
+  });
+}
+
+Future<void> _pumpAutoPageTurnReader(
+  WidgetTester tester, {
+  required int transitionIndex,
+}) async {
+  SharedPreferences.setMockInitialValues({
+    'readerOverlay': true,
+    'swipeToggle': false,
+    'lastPageSwipeEnabled': false,
+    'autoPageTurnInterval': 0.5,
+    'autoPageTurnTransition': transitionIndex,
+  });
+  final preferences = await SharedPreferences.getInstance();
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        getNextAndPreviousChaptersProvider(
+          mangaId: 1,
+          chapterId: 1,
+        ).overrideWith((_) => null),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SinglePageReaderMode(
+          manga: _manga,
+          chapter: _chapter,
+          chapterPages: _chapterPages,
+          initialPage: 0,
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }
 
 int _readerIndex(WidgetTester tester) =>
@@ -147,6 +236,10 @@ int _readerIndex(WidgetTester tester) =>
 ServerImage _serverImage(WidgetTester tester, String imageUrl) => tester
     .widgetList<ServerImage>(find.byType(ServerImage))
     .singleWhere((image) => image.imageUrl == imageUrl);
+
+AnimatedOpacity _autoPageTurnFade(WidgetTester tester) => tester.widget(
+      find.byKey(const ValueKey('auto-page-turn-fade')),
+    );
 
 final _manga = Fragment$MangaDto(
   downloadCount: 0,

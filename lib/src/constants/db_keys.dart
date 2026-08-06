@@ -32,6 +32,8 @@ enum DBKeys {
   swipeToggle(true),
   lastPageSwipeEnabled(false),
   scrollAnimation(true),
+  autoPageTurnInterval(5.0),
+  autoPageTurnTransition(AutoPageTurnTransition.smooth),
   showNSFW(true),
   downloadedBadge(true),
   unreadBadge(true),

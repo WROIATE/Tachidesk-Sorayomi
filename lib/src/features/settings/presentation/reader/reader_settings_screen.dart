@@ -12,6 +12,7 @@ import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../utils/extensions/custom_extensions.dart';
+import 'widgets/reader_auto_page_turn/reader_auto_page_turn_settings.dart';
 import 'widgets/reader_ignore_safe_area_tile/reader_ignore_safe_area_tile.dart';
 import 'widgets/reader_initial_overlay_tile/reader_initial_overlay_tile.dart';
 import 'widgets/reader_invert_tap_tile/reader_invert_tap_tile.dart';
@@ -43,6 +44,8 @@ class ReaderSettingsScreen extends ConsumerWidget {
           const SwipeChapterToggleTile(),
           const ReaderLastPageSwipeTile(),
           const ReaderScrollAnimationTile(),
+          const ReaderAutoPageTurnIntervalSlider(),
+          const ReaderAutoPageTurnTransitionTile(),
           const ReaderPaddingSlider(),
           const ReaderMagnifierSizeSlider(),
           if (!kIsWeb) ...[

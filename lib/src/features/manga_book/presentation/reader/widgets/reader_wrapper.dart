@@ -23,6 +23,7 @@ import '../../../../../utils/extensions/custom_extensions.dart';
 import '../../../../../utils/launch_url_in_web.dart';
 import '../../../../../utils/misc/toast/toast.dart';
 import '../../../../../widgets/popup_widgets/radio_list_popup.dart';
+import '../../../../settings/presentation/reader/widgets/reader_auto_page_turn/reader_auto_page_turn_settings.dart';
 import '../../../../settings/presentation/reader/widgets/reader_initial_overlay_tile/reader_initial_overlay_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_invert_tap_tile/reader_invert_tap_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_last_page_swipe_tile/reader_last_page_swipe_tile.dart';
@@ -60,6 +61,7 @@ class ReaderWrapper extends HookConsumerWidget {
     required this.chapterPages,
     this.pageController,
     this.onDoubleTap,
+    this.readerAction,
   });
   final Widget child;
   final MangaDto manga;
@@ -73,6 +75,7 @@ class ReaderWrapper extends HookConsumerWidget {
   final ChapterPagesDto chapterPages;
   final PageController? pageController;
   final ValueChanged<Offset>? onDoubleTap;
+  final Widget? readerAction;
 
   /// Determine transition direction based on reading mode for proper animations
   /// Returns true for vertical transitions, false for horizontal transitions
@@ -407,6 +410,10 @@ class ReaderWrapper extends HookConsumerWidget {
                   showReaderNavigationLayoutPopup();
                 },
               ),
+              if (pageController != null) ...[
+                const ReaderAutoPageTurnIntervalSlider(),
+                const ReaderAutoPageTurnTransitionTile(),
+              ],
               AsyncReaderPaddingSlider(
                 readerPadding: mangaReaderPadding,
                 onChanged: (value) {
@@ -512,6 +519,7 @@ class ReaderWrapper extends HookConsumerWidget {
                                   chapterProvider(chapterId: chapter.id)
                                       .future),
                             ),
+                            if (readerAction != null) readerAction!,
                             IconButton(
                               icon: const Icon(Icons.app_settings_alt_outlined),
                               onPressed: () => showReaderModePopup(),

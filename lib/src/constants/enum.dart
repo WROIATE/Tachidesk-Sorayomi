@@ -49,6 +49,17 @@ enum ReaderMode {
       };
 }
 
+enum AutoPageTurnTransition {
+  smooth,
+  fade;
+
+  String toLocale(BuildContext context) => switch (this) {
+        AutoPageTurnTransition.smooth =>
+          context.l10n.autoPageTurnTransitionSmooth,
+        AutoPageTurnTransition.fade => context.l10n.autoPageTurnTransitionFade,
+      };
+}
+
 enum ReaderNavigationLayout {
   defaultNavigation,
   lShaped,

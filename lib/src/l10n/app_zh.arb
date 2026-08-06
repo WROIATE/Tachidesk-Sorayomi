@@ -1415,5 +1415,19 @@
   "allSources": "全部图源",
   "pinSource": "置顶图源",
   "unpinSource": "取消置顶",
-  "noPinnedSources": "没有置顶图源"
+  "noPinnedSources": "没有置顶图源",
+  "autoPageTurnInterval": "自动翻页间隔",
+  "autoPageTurnIntervalValue": "{seconds} 秒",
+  "@autoPageTurnIntervalValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "autoPageTurnTransition": "自动翻页效果",
+  "autoPageTurnTransitionSmooth": "平滑翻页",
+  "autoPageTurnTransitionFade": "渐入渐出",
+  "startAutoPageTurn": "开始自动翻页",
+  "pauseAutoPageTurn": "暂停自动翻页"
 }

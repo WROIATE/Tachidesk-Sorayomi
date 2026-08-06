@@ -1259,5 +1259,19 @@
   "allSources": "全部圖源",
   "pinSource": "釘選圖源",
   "unpinSource": "取消釘選",
-  "noPinnedSources": "沒有已釘選圖源"
+  "noPinnedSources": "沒有已釘選圖源",
+  "autoPageTurnInterval": "自動翻頁間隔",
+  "autoPageTurnIntervalValue": "{seconds} 秒",
+  "@autoPageTurnIntervalValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "autoPageTurnTransition": "自動翻頁效果",
+  "autoPageTurnTransitionSmooth": "平滑翻頁",
+  "autoPageTurnTransitionFade": "淡入淡出",
+  "startAutoPageTurn": "開始自動翻頁",
+  "pauseAutoPageTurn": "暫停自動翻頁"
 }

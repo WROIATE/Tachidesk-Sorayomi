@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -13,10 +14,13 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../../../../../constants/app_constants.dart';
+import '../../../../../../constants/db_keys.dart';
+import '../../../../../../constants/enum.dart';
 import '../../../../../../utils/extensions/cache_manager_extensions.dart';
 import '../../../../../../utils/extensions/custom_extensions.dart';
 import '../../../../../../widgets/custom_circular_progress_indicator.dart';
 import '../../../../../../widgets/server_image.dart';
+import '../../../../../settings/presentation/reader/widgets/reader_auto_page_turn/reader_auto_page_turn_settings.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_pinch_to_zoom/reader_pinch_to_zoom.dart';
 import '../../../../../settings/presentation/reader/widgets/reader_scroll_animation_tile/reader_scroll_animation_tile.dart';
 import '../../../../domain/chapter/chapter_model.dart';
@@ -24,6 +28,8 @@ import '../../../../domain/chapter_page/chapter_page_model.dart';
 import '../../../../domain/manga/manga_model.dart';
 import '../reader_interactive_viewer.dart';
 import '../reader_wrapper.dart';
+
+const Duration _autoPageTurnFadeDuration = Duration(milliseconds: 250);
 
 class SinglePageReaderMode extends HookConsumerWidget {
   const SinglePageReaderMode({
@@ -73,13 +79,71 @@ class SinglePageReaderMode extends HookConsumerWidget {
       }
       return null;
     }, [currentIndex.value, chapterPages.pages.length]);
-    final isAnimationEnabled = ref
-        .read(readerScrollAnimationProvider)
-        .ifNull(true);
-    final isPinchToZoomEnabled =
-        !kIsWeb &&
+    final isAnimationEnabled =
+        ref.read(readerScrollAnimationProvider).ifNull(true);
+    final isPinchToZoomEnabled = !kIsWeb &&
         (Platform.isAndroid || Platform.isIOS) &&
         ref.watch(pinchToZoomProvider).ifNull(true);
+    final autoPageTurnInterval =
+        (ref.watch(readerAutoPageTurnIntervalProvider) ??
+                DBKeys.autoPageTurnInterval.initial as double)
+            .clamp(0.5, 60)
+            .toDouble();
+    final autoPageTurnTransition =
+        ref.watch(readerAutoPageTurnTransitionProvider) ??
+            DBKeys.autoPageTurnTransition.initial as AutoPageTurnTransition;
+    final autoPageTurnActive = useState(false);
+    final autoPageTurnOpacity = useState(1.0);
+
+    useEffect(() {
+      final sourceIndex = currentIndex.value;
+      final nextIndex = sourceIndex + 1;
+      if (!autoPageTurnActive.value ||
+          isZoomInteractionLocked.value ||
+          nextIndex >= chapterPages.pages.length) {
+        return null;
+      }
+
+      final timer = Timer(
+        Duration(milliseconds: (autoPageTurnInterval * 1000).round()),
+        () async {
+          if (!context.mounted || !scrollController.hasClients) return;
+
+          switch (autoPageTurnTransition) {
+            case AutoPageTurnTransition.smooth:
+              await scrollController.animateToPage(
+                nextIndex,
+                duration: kDuration,
+                curve: Curves.easeInOutCubic,
+              );
+              break;
+            case AutoPageTurnTransition.fade:
+              autoPageTurnOpacity.value = 0;
+              await Future<void>.delayed(_autoPageTurnFadeDuration);
+              if (!context.mounted) return;
+              if (!autoPageTurnActive.value ||
+                  isZoomInteractionLocked.value ||
+                  currentIndex.value != sourceIndex ||
+                  !scrollController.hasClients) {
+                autoPageTurnOpacity.value = 1;
+                return;
+              }
+              scrollController.jumpToPage(nextIndex);
+              autoPageTurnOpacity.value = 1;
+              break;
+          }
+        },
+      );
+      return timer.cancel;
+    }, [
+      autoPageTurnActive.value,
+      autoPageTurnInterval,
+      autoPageTurnTransition,
+      chapterPages.pages.length,
+      currentIndex.value,
+      isZoomInteractionLocked.value,
+    ]);
+
     return ReaderWrapper(
       scrollDirection: scrollDirection,
       chapter: chapter,
@@ -98,6 +162,22 @@ class SinglePageReaderMode extends HookConsumerWidget {
       ),
       pageController: scrollController,
       onDoubleTap: zoomController.toggleZoomAt,
+      readerAction: IconButton(
+        key: const ValueKey('auto-page-turn-toggle'),
+        tooltip: autoPageTurnActive.value
+            ? context.l10n.pauseAutoPageTurn
+            : context.l10n.startAutoPageTurn,
+        onPressed: chapterPages.pages.length > 1 &&
+                (autoPageTurnActive.value ||
+                    currentIndex.value < chapterPages.pages.length - 1)
+            ? () => autoPageTurnActive.value = !autoPageTurnActive.value
+            : null,
+        icon: Icon(
+          autoPageTurnActive.value
+              ? Icons.pause_circle_outline_rounded
+              : Icons.play_circle_outline_rounded,
+        ),
+      ),
       child: ReaderInteractiveViewer(
         enabled: isPinchToZoomEnabled,
         resetToken: currentIndex.value,
@@ -111,49 +191,63 @@ class SinglePageReaderMode extends HookConsumerWidget {
               if (settledPage != null && settledPage != currentIndex.value) {
                 currentIndex.value = settledPage;
                 onPageChanged?.call(settledPage);
+                if (settledPage >= chapterPages.pages.length - 1) {
+                  autoPageTurnActive.value = false;
+                }
               }
             }
             return false;
           },
-          child: PageView.builder(
-            scrollDirection: scrollDirection,
-            reverse: reverse,
-            controller: scrollController,
-            allowImplicitScrolling: true,
-            physics: isZoomInteractionLocked.value
-                ? const NeverScrollableScrollPhysics()
-                : const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-            itemBuilder: (BuildContext context, int index) {
-              // Show loading indicator if no pages are available yet
-              if (chapterPages.pages.isEmpty) {
-                return const Center(child: CenterSorayomiShimmerIndicator());
-              }
+          child: IgnorePointer(
+            ignoring: autoPageTurnOpacity.value != 1,
+            child: AnimatedOpacity(
+              key: const ValueKey('auto-page-turn-fade'),
+              opacity: autoPageTurnOpacity.value,
+              duration: _autoPageTurnFadeDuration,
+              curve: Curves.easeInOut,
+              child: PageView.builder(
+                scrollDirection: scrollDirection,
+                reverse: reverse,
+                controller: scrollController,
+                allowImplicitScrolling: true,
+                physics: isZoomInteractionLocked.value
+                    ? const NeverScrollableScrollPhysics()
+                    : const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                itemBuilder: (BuildContext context, int index) {
+                  // Show loading indicator if no pages are available yet
+                  if (chapterPages.pages.isEmpty) {
+                    return const Center(
+                        child: CenterSorayomiShimmerIndicator());
+                  }
 
-              // Add bounds checking to prevent accessing non-existent pages
-              if (index >= chapterPages.pages.length) {
-                return const Center(child: CenterSorayomiShimmerIndicator());
-              }
+                  // Add bounds checking to prevent accessing non-existent pages
+                  if (index >= chapterPages.pages.length) {
+                    return const Center(
+                        child: CenterSorayomiShimmerIndicator());
+                  }
 
-              final image = ServerImage(
-                showReloadButton: true,
-                fit: BoxFit.contain,
-                size: Size.fromHeight(context.height),
-                appendApiToUrl: false,
-                imageUrl: chapterPages.pages[index],
-                preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
-                isAnimationActive: index == currentIndex.value,
-                progressIndicatorBuilder: (context, url, downloadProgress) =>
-                    CenterSorayomiShimmerIndicator(
+                  final image = ServerImage(
+                    showReloadButton: true,
+                    fit: BoxFit.contain,
+                    size: Size.fromHeight(context.height),
+                    appendApiToUrl: false,
+                    imageUrl: chapterPages.pages[index],
+                    preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+                    isAnimationActive: index == currentIndex.value,
+                    progressIndicatorBuilder:
+                        (context, url, downloadProgress) =>
+                            CenterSorayomiShimmerIndicator(
                       value: downloadProgress.progress,
                     ),
-              );
-              return image;
-            },
-            itemCount: chapterPages.pages.isEmpty
-                ? 1
-                : chapterPages.pages.length,
+                  );
+                  return image;
+                },
+                itemCount:
+                    chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
+              ),
+            ),
           ),
         ),
       ),
