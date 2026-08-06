@@ -94,6 +94,13 @@ class SinglePageReaderMode extends HookConsumerWidget {
             DBKeys.autoPageTurnTransition.initial as AutoPageTurnTransition;
     final autoPageTurnActive = useState(false);
     final autoPageTurnOpacity = useState(1.0);
+    final autoPageTurnCrossFadeTarget = useState<int?>(null);
+    final autoPageTurnCrossFadeOpacity = useState(0.0);
+
+    void clearAutoPageTurnCrossFade() {
+      autoPageTurnCrossFadeTarget.value = null;
+      autoPageTurnCrossFadeOpacity.value = 0;
+    }
 
     useEffect(() {
       final sourceIndex = currentIndex.value;
@@ -130,6 +137,30 @@ class SinglePageReaderMode extends HookConsumerWidget {
               }
               scrollController.jumpToPage(nextIndex);
               autoPageTurnOpacity.value = 1;
+              break;
+            case AutoPageTurnTransition.crossFade:
+              autoPageTurnCrossFadeTarget.value = nextIndex;
+              await WidgetsBinding.instance.endOfFrame;
+              if (!context.mounted) return;
+              if (!autoPageTurnActive.value ||
+                  isZoomInteractionLocked.value ||
+                  currentIndex.value != sourceIndex ||
+                  !scrollController.hasClients) {
+                clearAutoPageTurnCrossFade();
+                return;
+              }
+              autoPageTurnCrossFadeOpacity.value = 1;
+              await Future<void>.delayed(_autoPageTurnFadeDuration);
+              if (!context.mounted) return;
+              if (!autoPageTurnActive.value ||
+                  isZoomInteractionLocked.value ||
+                  currentIndex.value != sourceIndex ||
+                  !scrollController.hasClients) {
+                clearAutoPageTurnCrossFade();
+                return;
+              }
+              scrollController.jumpToPage(nextIndex);
+              clearAutoPageTurnCrossFade();
               break;
           }
         },
@@ -170,7 +201,13 @@ class SinglePageReaderMode extends HookConsumerWidget {
         onPressed: chapterPages.pages.length > 1 &&
                 (autoPageTurnActive.value ||
                     currentIndex.value < chapterPages.pages.length - 1)
-            ? () => autoPageTurnActive.value = !autoPageTurnActive.value
+            ? () {
+                autoPageTurnActive.value = !autoPageTurnActive.value;
+                if (!autoPageTurnActive.value) {
+                  autoPageTurnOpacity.value = 1;
+                  clearAutoPageTurnCrossFade();
+                }
+              }
             : null,
         icon: Icon(
           autoPageTurnActive.value
@@ -199,58 +236,71 @@ class SinglePageReaderMode extends HookConsumerWidget {
             return false;
           },
           child: IgnorePointer(
-            ignoring: autoPageTurnOpacity.value != 1,
-            child: AnimatedOpacity(
-              key: const ValueKey('auto-page-turn-fade'),
-              opacity: autoPageTurnOpacity.value,
-              duration: _autoPageTurnFadeDuration,
-              curve: Curves.easeInOut,
-              child: PageView.builder(
-                scrollDirection: scrollDirection,
-                reverse: reverse,
-                controller: scrollController,
-                allowImplicitScrolling: true,
-                physics: isZoomInteractionLocked.value
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                itemBuilder: (BuildContext context, int index) {
-                  // Show loading indicator if no pages are available yet
-                  if (chapterPages.pages.isEmpty) {
-                    return const Center(
-                        child: CenterSorayomiShimmerIndicator());
-                  }
-
-                  // Add bounds checking to prevent accessing non-existent pages
-                  if (index >= chapterPages.pages.length) {
-                    return const Center(
-                        child: CenterSorayomiShimmerIndicator());
-                  }
-
-                  final image = ServerImage(
-                    showReloadButton: true,
-                    fit: BoxFit.contain,
-                    size: Size.fromHeight(context.height),
-                    appendApiToUrl: false,
-                    imageUrl: chapterPages.pages[index],
-                    preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
-                    isAnimationActive: index == currentIndex.value,
-                    progressIndicatorBuilder:
-                        (context, url, downloadProgress) =>
-                            CenterSorayomiShimmerIndicator(
-                      value: downloadProgress.progress,
+            ignoring: autoPageTurnOpacity.value != 1 ||
+                autoPageTurnCrossFadeTarget.value != null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                AnimatedOpacity(
+                  key: const ValueKey('auto-page-turn-fade'),
+                  opacity: autoPageTurnOpacity.value,
+                  duration: _autoPageTurnFadeDuration,
+                  curve: Curves.easeInOut,
+                  child: PageView.builder(
+                    scrollDirection: scrollDirection,
+                    reverse: reverse,
+                    controller: scrollController,
+                    allowImplicitScrolling: true,
+                    physics: isZoomInteractionLocked.value
+                        ? const NeverScrollableScrollPhysics()
+                        : const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                    itemBuilder: (context, index) => _buildPage(
+                      context,
+                      index,
+                      isAnimationActive: index == currentIndex.value,
                     ),
-                  );
-                  return image;
-                },
-                itemCount:
-                    chapterPages.pages.isEmpty ? 1 : chapterPages.pages.length,
-              ),
+                    itemCount: chapterPages.pages.isEmpty
+                        ? 1
+                        : chapterPages.pages.length,
+                  ),
+                ),
+                if (autoPageTurnCrossFadeTarget.value case final targetIndex?)
+                  AnimatedOpacity(
+                    key: const ValueKey('auto-page-turn-cross-fade'),
+                    opacity: autoPageTurnCrossFadeOpacity.value,
+                    duration: _autoPageTurnFadeDuration,
+                    curve: Curves.easeInOut,
+                    child: _buildPage(context, targetIndex),
+                  ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPage(
+    BuildContext context,
+    int index, {
+    bool isAnimationActive = true,
+  }) {
+    if (chapterPages.pages.isEmpty || index >= chapterPages.pages.length) {
+      return const Center(child: CenterSorayomiShimmerIndicator());
+    }
+
+    return ServerImage(
+      showReloadButton: true,
+      fit: BoxFit.contain,
+      size: Size.fromHeight(context.height),
+      appendApiToUrl: false,
+      imageUrl: chapterPages.pages[index],
+      preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+      isAnimationActive: isAnimationActive,
+      progressIndicatorBuilder: (context, url, downloadProgress) =>
+          CenterSorayomiShimmerIndicator(value: downloadProgress.progress),
     );
   }
 }

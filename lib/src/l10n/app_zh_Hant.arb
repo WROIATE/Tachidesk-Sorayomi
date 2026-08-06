@@ -1272,6 +1272,7 @@
   "autoPageTurnTransition": "自動翻頁效果",
   "autoPageTurnTransitionSmooth": "平滑翻頁",
   "autoPageTurnTransitionFade": "淡入淡出",
+  "autoPageTurnTransitionCrossFade": "交叉淡化",
   "startAutoPageTurn": "開始自動翻頁",
   "pauseAutoPageTurn": "暫停自動翻頁"
 }

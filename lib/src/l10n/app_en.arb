@@ -1372,6 +1372,7 @@
     "autoPageTurnTransition": "Auto page turn effect",
     "autoPageTurnTransitionSmooth": "Smooth page turn",
     "autoPageTurnTransitionFade": "Fade in and out",
+    "autoPageTurnTransitionCrossFade": "Crossfade",
     "startAutoPageTurn": "Start auto page turn",
     "pauseAutoPageTurn": "Pause auto page turn"
 }

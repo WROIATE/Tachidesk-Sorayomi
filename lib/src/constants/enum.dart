@@ -51,12 +51,15 @@ enum ReaderMode {
 
 enum AutoPageTurnTransition {
   smooth,
-  fade;
+  fade,
+  crossFade;
 
   String toLocale(BuildContext context) => switch (this) {
         AutoPageTurnTransition.smooth =>
           context.l10n.autoPageTurnTransitionSmooth,
         AutoPageTurnTransition.fade => context.l10n.autoPageTurnTransitionFade,
+        AutoPageTurnTransition.crossFade =>
+          context.l10n.autoPageTurnTransitionCrossFade,
       };
 }
 

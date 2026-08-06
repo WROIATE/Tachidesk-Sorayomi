@@ -186,6 +186,40 @@ void main() {
     expect(_readerIndex(tester), 1);
     expect(find.byIcon(Icons.play_circle_outline_rounded), findsOneWidget);
   });
+
+  testWidgets('paged reader can crossfade automatically advanced pages', (
+    tester,
+  ) async {
+    await _pumpAutoPageTurnReader(tester, transitionIndex: 2);
+
+    await tester.tap(find.byKey(const ValueKey('auto-page-turn-toggle')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    final crossFade = find.byKey(
+      const ValueKey('auto-page-turn-cross-fade'),
+    );
+    expect(crossFade, findsOneWidget);
+    expect(tester.widget<AnimatedOpacity>(crossFade).opacity, 1);
+    expect(_autoPageTurnFade(tester).opacity, 1);
+    expect(_readerIndex(tester), 0);
+    expect(
+      tester
+          .widget<ServerImage>(
+            find.descendant(of: crossFade, matching: find.byType(ServerImage)),
+          )
+          .imageUrl,
+      '/page-2',
+    );
+
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
+
+    expect(crossFade, findsNothing);
+    expect(_readerIndex(tester), 1);
+    expect(find.byIcon(Icons.play_circle_outline_rounded), findsOneWidget);
+  });
 }
 
 Future<void> _pumpAutoPageTurnReader(
