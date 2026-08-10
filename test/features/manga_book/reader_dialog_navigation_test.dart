@@ -6,6 +6,7 @@ import 'package:graphql/client.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tachidesk_sorayomi/src/constants/enum.dart';
+import 'package:tachidesk_sorayomi/src/constants/reader_keyboard_shortcuts.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/data/manga_book/manga_book_repository.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/graphql/__generated__/fragment.graphql.dart';
@@ -55,6 +56,41 @@ void main() {
     expect(harness.readerObserver.dialogPops, 1);
     expect(await harness.readerNavigatorKey.currentState!.maybePop(), isTrue);
   });
+
+  testWidgets('chapter replacement preserves the hidden reader overlay', (
+    tester,
+  ) async {
+    final harness = await _pumpReader(tester);
+
+    expect(find.byType(AppBar), findsOneWidget);
+
+    Actions.invoke(
+      tester.element(find.byType(ReaderView)),
+      HideQuickOpenIntent(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppBar), findsNothing);
+
+    harness.readerNavigatorKey.currentState!.pushReplacement<void, void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _readerWrapper(_nextChapter),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppBar), findsNothing);
+
+    expect(await harness.readerNavigatorKey.currentState!.maybePop(), isTrue);
+    await tester.pumpAndSettle();
+
+    harness.readerNavigatorKey.currentState!.push<void>(
+      MaterialPageRoute<void>(builder: (_) => _readerWrapper(_chapter)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppBar), findsOneWidget);
+  });
 }
 
 Future<_ReaderHarness> _pumpReader(WidgetTester tester) async {
@@ -87,17 +123,7 @@ Future<_ReaderHarness> _pumpReader(WidgetTester tester) async {
             ),
             MaterialPageRoute<void>(
               settings: RouteSettings(name: initialRoute),
-              builder: (_) => ReaderWrapper(
-                manga: _manga,
-                chapter: _chapter,
-                chapterPages: _chapterPages,
-                currentIndex: 0,
-                onChanged: (_) {},
-                onNext: () {},
-                onPrevious: () {},
-                scrollDirection: Axis.horizontal,
-                child: const ColoredBox(color: Colors.black),
-              ),
+              builder: (_) => _readerWrapper(_chapter),
             ),
           ],
         ),
@@ -133,6 +159,21 @@ Future<_ReaderHarness> _pumpReader(WidgetTester tester) async {
   );
 }
 
+ReaderWrapper _readerWrapper(Fragment$ChapterDto chapter) => ReaderWrapper(
+      manga: _manga,
+      chapter: chapter,
+      chapterPages: _chapterPages,
+      currentIndex: 0,
+      onChanged: (_) {},
+      onNext: () {},
+      onPrevious: () {},
+      scrollDirection: Axis.horizontal,
+      child: const SizedBox.expand(
+        key: ValueKey('reader-page'),
+        child: ColoredBox(color: Colors.black),
+      ),
+    );
+
 final _manga = Fragment$MangaDto(
   downloadCount: 0,
   genre: const [],
@@ -162,6 +203,24 @@ final _chapter = Fragment$ChapterDto(
   name: 'Chapter 1',
   pageCount: 1,
   sourceOrder: 1,
+  uploadDate: '0',
+  url: '',
+  meta: const [],
+);
+
+final _nextChapter = Fragment$ChapterDto(
+  chapterNumber: 2,
+  fetchedAt: '0',
+  id: 2,
+  isBookmarked: false,
+  isDownloaded: false,
+  isRead: false,
+  lastPageRead: 0,
+  lastReadAt: '0',
+  mangaId: 1,
+  name: 'Chapter 2',
+  pageCount: 1,
+  sourceOrder: 2,
   uploadDate: '0',
   url: '',
   meta: const [],

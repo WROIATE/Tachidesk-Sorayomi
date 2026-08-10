@@ -24,7 +24,6 @@ import '../../../../../utils/launch_url_in_web.dart';
 import '../../../../../utils/misc/toast/toast.dart';
 import '../../../../../widgets/popup_widgets/radio_list_popup.dart';
 import '../../../../settings/presentation/reader/widgets/reader_auto_page_turn/reader_auto_page_turn_settings.dart';
-import '../../../../settings/presentation/reader/widgets/reader_initial_overlay_tile/reader_initial_overlay_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_invert_tap_tile/reader_invert_tap_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_last_page_swipe_tile/reader_last_page_swipe_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_magnifier_size_slider/reader_magnifier_size_slider.dart';
@@ -41,6 +40,7 @@ import '../../../domain/manga/manga_model.dart';
 import '../../../widgets/chapter_actions/single_chapter_action_icon.dart';
 import '../../manga_details/controller/manga_details_controller.dart';
 import '../controller/reader_controller.dart';
+import '../controller/reader_overlay_controller.dart';
 import '../utils/last_page_swipe_utils.dart';
 import 'directional_swipe_gesture_handler.dart';
 import 'page_number_slider.dart';
@@ -147,8 +147,9 @@ class ReaderWrapper extends HookConsumerWidget {
         ref.watch(readerMagnifierSizeKeyProvider) ??
             DBKeys.readerMagnifierSize.initial;
 
-    final visibility =
-        useState(ref.read(readerInitialOverlayProvider).ifNull());
+    final visibility = ref.watch(readerOverlayVisibilityProvider);
+    final visibilityController =
+        ref.read(readerOverlayVisibilityProvider.notifier);
     final mangaReaderPadding =
         useState(manga.metaData.readerPadding ?? localMangaReaderPadding);
     final mangaReaderMagnifierSize = useState(
@@ -224,11 +225,11 @@ class ReaderWrapper extends HookConsumerWidget {
     );
 
     useEffect(() {
-      if (!visibility.value) {
+      if (!visibility) {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       }
       return null;
-    }, [visibility.value]);
+    }, [visibility]);
 
     // Enhanced navigation callbacks with last-page swipe logic
     final enhancedOnNext = useCallback(() {
@@ -345,7 +346,7 @@ class ReaderWrapper extends HookConsumerWidget {
         ),
       ),
       child: Scaffold(
-        appBar: visibility.value
+        appBar: visibility
             ? AppBar(
                 title: ListTile(
                   title: (manga.title).isNotBlank
@@ -443,7 +444,7 @@ class ReaderWrapper extends HookConsumerWidget {
             ],
           ),
         ),
-        bottomSheet: visibility.value
+        bottomSheet: visibility
             ? ExcludeFocus(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -577,7 +578,7 @@ class ReaderWrapper extends HookConsumerWidget {
               ),
               HideQuickOpenIntent: CallbackAction<HideQuickOpenIntent>(
                 onInvoke: (HideQuickOpenIntent intent) {
-                  visibility.value = !visibility.value;
+                  visibilityController.toggle();
                   return null;
                 },
               ),
@@ -587,8 +588,7 @@ class ReaderWrapper extends HookConsumerWidget {
               child: Listener(
                 child: RepaintBoundary(
                   child: ReaderView(
-                    toggleVisibility: () =>
-                        visibility.value = !visibility.value,
+                    toggleVisibility: visibilityController.toggle,
                     scrollDirection: scrollDirection,
                     mangaId: manga.id,
                     mangaReaderPadding: mangaReaderPadding.value,

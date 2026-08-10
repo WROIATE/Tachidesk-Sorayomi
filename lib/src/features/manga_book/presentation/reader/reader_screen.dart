@@ -22,6 +22,7 @@ import '../../data/manga_book/manga_book_repository.dart';
 import '../../domain/manga/manga_model.dart';
 import '../manga_details/controller/manga_details_controller.dart';
 import 'controller/reader_controller.dart';
+import 'controller/reader_overlay_controller.dart';
 import 'utils/reader_initial_page.dart';
 import 'utils/reader_progress.dart';
 import 'widgets/reader_mode/continuous_reader_mode.dart';
@@ -54,6 +55,9 @@ class ReaderScreen extends HookConsumerWidget {
     final toast = ref.read(toastProvider);
     final container = ProviderScope.containerOf(context, listen: false);
     final isExiting = useRef(false);
+
+    // Preserve the overlay state across chapter routes and their loading UI.
+    ref.watch(readerOverlayVisibilityProvider);
 
     final progressSaver = useMemoized(
       () => ReaderProgressSaver(
