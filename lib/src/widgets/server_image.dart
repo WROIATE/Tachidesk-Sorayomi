@@ -49,6 +49,16 @@ class ServerImageRetryCoordinator {
   }
 }
 
+@visibleForTesting
+(AuthType?, Object?) serverImageAuthenticationScope(
+  AuthType? authType,
+  String? authorization,
+) =>
+    (
+      authType,
+      authType == AuthType.uiLogin ? authorization != null : authorization,
+    );
+
 class ServerImage extends HookConsumerWidget {
   const ServerImage({
     super.key,
@@ -129,6 +139,10 @@ class ServerImage extends HookConsumerWidget {
         ? null
         : <String, String>{'Authorization': authorization};
     final canLoadImage = !isUiLoggedIn || accessToken != null;
+    final authenticationScope = serverImageAuthenticationScope(
+      authType,
+      authorization,
+    );
     final imageFile = useMemoized<Future<LoadedImageFile?>?>(
       () {
         if (!preferFlutterCodec || !canLoadImage) return null;
@@ -140,7 +154,7 @@ class ServerImage extends HookConsumerWidget {
       },
       [
         baseApi,
-        authorization,
+        authenticationScope,
         preferFlutterCodec,
         canLoadImage,
         key.value,

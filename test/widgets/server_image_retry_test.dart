@@ -11,6 +11,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tachidesk_sorayomi/src/constants/db_keys.dart';
 import 'package:tachidesk_sorayomi/src/constants/endpoints.dart';
+import 'package:tachidesk_sorayomi/src/constants/enum.dart';
 import 'package:tachidesk_sorayomi/src/global_providers/global_providers.dart';
 import 'package:tachidesk_sorayomi/src/widgets/server_image.dart';
 
@@ -54,6 +55,29 @@ void main() {
     );
 
     expect(retries, 1);
+  });
+
+  test('UI access token rotation keeps the same image loading scope', () {
+    final firstToken = serverImageAuthenticationScope(
+      AuthType.uiLogin,
+      'Bearer first-token',
+    );
+    final refreshedToken = serverImageAuthenticationScope(
+      AuthType.uiLogin,
+      'Bearer refreshed-token',
+    );
+
+    expect(refreshedToken, firstToken);
+    expect(
+      serverImageAuthenticationScope(AuthType.uiLogin, null),
+      isNot(firstToken),
+    );
+    expect(
+      serverImageAuthenticationScope(AuthType.basic, 'Basic replacement'),
+      isNot(
+        serverImageAuthenticationScope(AuthType.basic, 'Basic original'),
+      ),
+    );
   });
 
   testWidgets('reader image evicts only its decoded memory entry on dispose', (
