@@ -17,10 +17,19 @@ import 'package:tachidesk_sorayomi/src/graphql/__generated__/schema.graphql.dart
 import 'package:tachidesk_sorayomi/src/l10n/generated/app_localizations.dart';
 
 void main() {
+  testWidgets('reader overlay is hidden by default', (tester) async {
+    await _pumpReader(tester, initialPreferences: const {});
+
+    expect(find.byType(AppBar), findsNothing);
+  });
+
   testWidgets('reader mode dialog stays in the reader navigator', (
     tester,
   ) async {
-    final harness = await _pumpReader(tester);
+    final harness = await _pumpReader(
+      tester,
+      initialPreferences: const {'readerOverlay': true},
+    );
 
     await tester.tap(find.byIcon(Icons.app_settings_alt_outlined));
     await tester.pumpAndSettle();
@@ -38,7 +47,10 @@ void main() {
   testWidgets('reader navigation layout dialog stays in the reader navigator', (
     tester,
   ) async {
-    final harness = await _pumpReader(tester);
+    final harness = await _pumpReader(
+      tester,
+      initialPreferences: const {'readerOverlay': true},
+    );
 
     await tester.tap(find.byIcon(Icons.settings_rounded));
     await tester.pumpAndSettle();
@@ -60,7 +72,10 @@ void main() {
   testWidgets('chapter replacement preserves the hidden reader overlay', (
     tester,
   ) async {
-    final harness = await _pumpReader(tester);
+    final harness = await _pumpReader(
+      tester,
+      initialPreferences: const {'readerOverlay': true},
+    );
 
     expect(find.byType(AppBar), findsOneWidget);
 
@@ -93,8 +108,11 @@ void main() {
   });
 }
 
-Future<_ReaderHarness> _pumpReader(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({});
+Future<_ReaderHarness> _pumpReader(
+  WidgetTester tester, {
+  Map<String, Object> initialPreferences = const {},
+}) async {
+  SharedPreferences.setMockInitialValues(initialPreferences);
   final preferences = await SharedPreferences.getInstance();
   final rootObserver = _DialogObserver();
   final readerObserver = _DialogObserver();

@@ -52,7 +52,7 @@ enum DBKeys {
   libraryDisplayMode(DisplayMode.grid),
   sourceDisplayMode(DisplayMode.grid),
   gridMangaCoverWidth(192.0),
-  readerOverlay(true),
+  readerOverlay(false),
   volumeTap(false),
   volumeTapInvert(false),
   hideEmptyCategory(false),
