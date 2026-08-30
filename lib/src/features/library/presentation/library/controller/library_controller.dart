@@ -47,6 +47,10 @@ class CategoryMangaListWithQueryAndFilter
         ref.watch(libraryMangaSortDirectionProvider).ifNull(true);
 
     bool applyMangaFilter(MangaDto manga) {
+      if (!manga.inLibrary.ifNull()) {
+        return false;
+      }
+
       if (mangaFilterUnread != null &&
           (mangaFilterUnread ^ manga.unreadCount.isGreaterThan(0))) {
         return false;
