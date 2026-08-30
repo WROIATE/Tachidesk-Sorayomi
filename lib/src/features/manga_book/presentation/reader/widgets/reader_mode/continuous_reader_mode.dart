@@ -37,6 +37,8 @@ class _ScrollConfig {
   static const Duration programmaticNavigationDelay = Duration(
     milliseconds: 800,
   );
+
+  static const double offscreenCacheExtent = 0.75;
 }
 
 class ContinuousReaderMode extends HookConsumerWidget {
@@ -96,10 +98,8 @@ class ContinuousReaderMode extends HookConsumerWidget {
     // Enhanced position tracking that allows UI updates but prevents jumps
     useEffect(() {
       void listener() {
-        final List<ItemPosition> positions = positionsListener
-            .itemPositions
-            .value
-            .toList();
+        final List<ItemPosition> positions =
+            positionsListener.itemPositions.value.toList();
 
         if (positions.isEmpty) return;
 
@@ -145,11 +145,9 @@ class ContinuousReaderMode extends HookConsumerWidget {
       return null;
     }, [currentIndex.value]); // Only watch currentIndex changes
 
-    final bool isAnimationEnabled = ref
-        .read(readerScrollAnimationProvider)
-        .ifNull(true);
-    final bool isPinchToZoomEnabled =
-        !kIsWeb &&
+    final bool isAnimationEnabled =
+        ref.read(readerScrollAnimationProvider).ifNull(true);
+    final bool isPinchToZoomEnabled = !kIsWeb &&
         (Platform.isAndroid || Platform.isIOS) &&
         ref.watch(pinchToZoomProvider).ifNull(true);
     final zoomController = useMemoized(ReaderInteractiveViewerController.new);
@@ -217,9 +215,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
               ? const NeverScrollableScrollPhysics()
               : null,
           itemCount: chapterPages.pages.length,
+          addAutomaticKeepAlives: false,
           minCacheExtent: scrollDirection == Axis.vertical
-              ? context.height * 2
-              : context.width * 2,
+              ? context.height * _ScrollConfig.offscreenCacheExtent
+              : context.width * _ScrollConfig.offscreenCacheExtent,
           separatorBuilder: (BuildContext context, int index) =>
               showSeparator ? const Gap(16) : const SizedBox.shrink(),
           itemBuilder: (BuildContext context, int index) {
@@ -230,7 +229,8 @@ class ContinuousReaderMode extends HookConsumerWidget {
                   : BoxFit.fitHeight,
               appendApiToUrl: false,
               imageUrl: chapterPages.pages[index],
-              preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+              evictFromMemoryOnDispose: true,
+              preferFlutterCodec: !kIsWeb && Platform.isAndroid,
               isAnimationActive: index == currentIndex.value,
               progressIndicatorBuilder: (_, __, downloadProgress) => Center(
                 child: CircularProgressIndicator(
@@ -345,8 +345,8 @@ class ContinuousReaderMode extends HookConsumerWidget {
     // Don't interfere if user is actively scrolling
     if (isUserScrolling.value) return;
 
-    final List<ItemPosition> positions = positionsListener.itemPositions.value
-        .toList();
+    final List<ItemPosition> positions =
+        positionsListener.itemPositions.value.toList();
     if (positions.isEmpty) return;
 
     // Find current position
@@ -376,9 +376,8 @@ class ContinuousReaderMode extends HookConsumerWidget {
     } else {
       // Move to previous item with minimal scroll
       if (currentPosition.itemLeadingEdge < 0.2) {
-        targetIndex = (currentPosition.index - 1)
-            .clamp(0, double.infinity)
-            .toInt();
+        targetIndex =
+            (currentPosition.index - 1).clamp(0, double.infinity).toInt();
         alignment = 0.0;
       } else {
         targetIndex = currentPosition.index;

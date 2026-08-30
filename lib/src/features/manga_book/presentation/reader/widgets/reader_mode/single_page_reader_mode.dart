@@ -297,8 +297,9 @@ class SinglePageReaderMode extends HookConsumerWidget {
       size: Size.fromHeight(context.height),
       appendApiToUrl: false,
       imageUrl: chapterPages.pages[index],
-      preferFlutterCodecAnimation: !kIsWeb && Platform.isAndroid,
+      preferFlutterCodec: !kIsWeb && Platform.isAndroid,
       isAnimationActive: isAnimationActive,
+      evictFromMemoryOnDispose: true,
       progressIndicatorBuilder: (context, url, downloadProgress) =>
           CenterSorayomiShimmerIndicator(value: downloadProgress.progress),
     );

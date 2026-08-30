@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/graphql/__generated__/fragment.graphql.dart';
@@ -58,6 +59,10 @@ void main() {
 
     expect(_readerIndex(tester), 0);
     expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
+    expect(
+      _serverImage(tester, '/page-1').evictFromMemoryOnDispose,
+      isTrue,
+    );
 
     final pageView = find.byType(PageView);
     final pageBounds = tester.getRect(pageView);
@@ -138,6 +143,26 @@ void main() {
 
     expect(_serverImage(tester, '/page-1').isAnimationActive, isTrue);
     expect(_serverImage(tester, '/page-2').isAnimationActive, isFalse);
+    expect(
+      _serverImage(tester, '/page-1').evictFromMemoryOnDispose,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<ScrollablePositionedList>(
+            find.byType(ScrollablePositionedList),
+          )
+          .minCacheExtent,
+      tester.view.physicalSize.height / tester.view.devicePixelRatio * 0.75,
+    );
+    expect(
+      tester
+          .widget<ScrollablePositionedList>(
+            find.byType(ScrollablePositionedList),
+          )
+          .addAutomaticKeepAlives,
+      isFalse,
+    );
     expect(
       find.byKey(const ValueKey('auto-page-turn-toggle')),
       findsNothing,

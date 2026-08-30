@@ -78,18 +78,32 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
       _loading = true;
       _hasError = false;
     }
-    unawaited(_decodeFirstFrame(generation, widget.active));
+    unawaited(
+      _decodeFirstFrame(
+        generation,
+        widget.active,
+        widget.filePath,
+        widget.targetWidth,
+      ),
+    );
   }
 
-  Future<void> _decodeFirstFrame(int generation, bool animate) async {
+  Future<void> _decodeFirstFrame(
+    int generation,
+    bool animate,
+    String filePath,
+    int targetWidth,
+  ) async {
     ui.Codec? codec;
     try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(widget.filePath);
+      final buffer = await ui.ImmutableBuffer.fromFilePath(filePath);
       codec = await ui.instantiateImageCodecFromBuffer(
         buffer,
-        targetWidth: widget.targetWidth,
+        targetWidth: targetWidth,
         allowUpscaling: false,
       );
+      if (!_isCurrent(generation) || widget.active != animate) return;
+
       final frame = await codec.getNextFrame();
       if (!_isCurrent(generation) || widget.active != animate) {
         frame.image.dispose();

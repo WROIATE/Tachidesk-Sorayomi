@@ -25,6 +25,7 @@ import '../utils/animated_image_file_loader.dart';
 import '../utils/extensions/custom_extensions.dart';
 import '../utils/misc/app_utils.dart';
 import 'custom_circular_progress_indicator.dart';
+import 'evicting_file_image.dart';
 import 'flutter_codec_animated_image.dart';
 
 class ServerImageRetryCoordinator {
@@ -59,8 +60,9 @@ class ServerImage extends HookConsumerWidget {
     this.wrapper,
     this.showReloadButton = false,
     this.retryAfterFailure,
-    this.preferFlutterCodecAnimation = false,
+    this.preferFlutterCodec = false,
     this.isAnimationActive = true,
+    this.evictFromMemoryOnDispose = false,
   });
 
   final String imageUrl;
@@ -68,12 +70,13 @@ class ServerImage extends HookConsumerWidget {
   final BoxFit? fit;
   final bool appendApiToUrl;
   final Widget Function(BuildContext, String, DownloadProgress)?
-  progressIndicatorBuilder;
+      progressIndicatorBuilder;
   final Widget Function(Widget child)? wrapper;
   final bool showReloadButton;
   final Future<void>? retryAfterFailure;
-  final bool preferFlutterCodecAnimation;
+  final bool preferFlutterCodec;
   final bool isAnimationActive;
+  final bool evictFromMemoryOnDispose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -93,8 +96,7 @@ class ServerImage extends HookConsumerWidget {
             authSessionProvider.select((session) => session.accessToken),
           )
         : null;
-    final isUiLoggedIn =
-        isUiLogin &&
+    final isUiLoggedIn = isUiLogin &&
         ref.watch(authSessionProvider.select((session) => session.isLoggedIn));
 
     useEffect(() {
@@ -108,6 +110,16 @@ class ServerImage extends HookConsumerWidget {
         "${Endpoints.baseApi(baseUrl: ref.watch(serverUrlProvider), port: ref.watch(serverPortProvider), addPort: ref.watch(serverPortToggleProvider).ifNull(), appendApiToUrl: appendApiToUrl)}"
         "$imageUrl";
 
+    useEffect(() {
+      if (!evictFromMemoryOnDispose) return null;
+      return () {
+        PaintingBinding.instance.imageCache.evict(
+          CachedNetworkImageProvider(baseApi),
+          includeLive: false,
+        );
+      };
+    }, [baseApi, evictFromMemoryOnDispose]);
+
     final authorization = switch (authType) {
       AuthType.basic when basicToken != null => basicToken,
       AuthType.uiLogin when accessToken != null => 'Bearer $accessToken',
@@ -117,10 +129,10 @@ class ServerImage extends HookConsumerWidget {
         ? null
         : <String, String>{'Authorization': authorization};
     final canLoadImage = !isUiLoggedIn || accessToken != null;
-    final animationFile = useMemoized<Future<String?>?>(
+    final imageFile = useMemoized<Future<LoadedImageFile?>?>(
       () {
-        if (!preferFlutterCodecAnimation || !canLoadImage) return null;
-        return loadAnimatedImageFile(
+        if (!preferFlutterCodec || !canLoadImage) return null;
+        return loadImageFile(
           cacheManager: cacheManager,
           url: baseApi,
           headers: httpHeaders,
@@ -129,13 +141,13 @@ class ServerImage extends HookConsumerWidget {
       [
         baseApi,
         authorization,
-        preferFlutterCodecAnimation,
+        preferFlutterCodec,
         canLoadImage,
         key.value,
       ],
     );
-    final animationFileSnapshot = useFuture(
-      animationFile,
+    final imageFileSnapshot = useFuture(
+      imageFile,
       preserveState: false,
     );
 
@@ -150,11 +162,12 @@ class ServerImage extends HookConsumerWidget {
       BuildContext context,
       String url,
       DownloadProgress progress,
-    ) => AppUtils.wrapOn(
-      wrapper,
-      progressIndicatorBuilder?.call(context, url, progress) ??
-          const CenterSorayomiShimmerIndicator(),
-    );
+    ) =>
+        AppUtils.wrapOn(
+          wrapper,
+          progressIndicatorBuilder?.call(context, url, progress) ??
+              const CenterSorayomiShimmerIndicator(),
+        );
 
     Widget errorContent(BuildContext context) {
       if (isWaitingToRetry.value) {
@@ -211,24 +224,36 @@ class ServerImage extends HookConsumerWidget {
       );
     }
 
-    if (animationFile != null) {
-      if (animationFileSnapshot.connectionState != ConnectionState.done) {
+    if (imageFile != null) {
+      if (imageFileSnapshot.connectionState != ConnectionState.done) {
         return AppUtils.wrapOn(wrapper, const CenterSorayomiShimmerIndicator());
       }
-      if (animationFileSnapshot.hasError) {
-        return errorWidget(context, baseApi, animationFileSnapshot.error);
+      if (imageFileSnapshot.hasError) {
+        return errorWidget(context, baseApi, imageFileSnapshot.error);
       }
-      final animatedFilePath = animationFileSnapshot.data;
-      if (animatedFilePath != null) {
-        final targetWidth =
-            (MediaQuery.sizeOf(context).width *
-                    MediaQuery.devicePixelRatioOf(context))
-                .ceil();
+      final loadedImage = imageFileSnapshot.data;
+      if (loadedImage != null) {
+        if (!loadedImage.isAnimated) {
+          return AppUtils.wrapOn(
+            wrapper,
+            EvictingFileImage(
+              key: key.value,
+              filePath: loadedImage.path,
+              fit: fit ?? BoxFit.cover,
+              evictFromMemoryOnDispose: evictFromMemoryOnDispose,
+              errorBuilder: errorContent,
+            ),
+          );
+        }
+
+        final targetWidth = (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .ceil();
         return AppUtils.wrapOn(
           wrapper,
           FlutterCodecAnimatedImage(
             key: key.value,
-            filePath: animatedFilePath,
+            filePath: loadedImage.path,
             fit: fit ?? BoxFit.cover,
             active: isAnimationActive,
             targetWidth: targetWidth,

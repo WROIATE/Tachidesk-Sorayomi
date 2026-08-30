@@ -6,8 +6,11 @@
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
-Future<String?> loadAnimatedImageFile({
+typedef LoadedImageFile = ({String path, bool isAnimated});
+
+Future<LoadedImageFile?> loadImageFile({
   required CacheManager cacheManager,
   required String url,
   Map<String, String>? headers,
-}) async => null;
+}) async =>
+    null;
