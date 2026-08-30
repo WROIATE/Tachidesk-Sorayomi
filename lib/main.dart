@@ -15,12 +15,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'src/features/about/presentation/about/controllers/about_controller.dart';
 import 'src/global_providers/global_providers.dart';
 import 'src/sorayomi.dart';
+import 'src/utils/cache/legacy_graphql_cache_cleanup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final packageInfo = await PackageInfo.fromPlatform();
   final sharedPreferences = await SharedPreferences.getInstance();
-  await initHiveForFlutter();
+  await deleteLegacyGraphQlCache();
 
   SystemChrome.setPreferredOrientations(DeviceOrientation.values);
   GoRouter.optionURLReflectsImperativeAPIs = true;
@@ -29,7 +30,7 @@ Future<void> main() async {
       overrides: [
         packageInfoProvider.overrideWithValue(packageInfo),
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-        hiveStoreProvider.overrideWithValue(HiveStore())
+        graphQlStoreProvider.overrideWithValue(InMemoryStore()),
       ],
       child: const Sorayomi(),
     ),

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -14,21 +12,14 @@ void main() {
       DBKeys.serverRequestTimeout.name: 8000,
     });
     final preferences = await SharedPreferences.getInstance();
-    final cacheDirectory =
-        await Directory.systemTemp.createTemp('graphql_timeout_test');
-    HiveStore.init(onPath: cacheDirectory.path);
-    final store = await HiveStore.open(boxName: 'graphqlTimeoutTest');
+    final store = InMemoryStore();
     final container = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
-        hiveStoreProvider.overrideWithValue(store),
+        graphQlStoreProvider.overrideWithValue(store),
       ],
     );
-    addTearDown(() async {
-      container.dispose();
-      await store.box.close();
-      await cacheDirectory.delete(recursive: true);
-    });
+    addTearDown(container.dispose);
 
     const expectedTimeout = Duration(seconds: 8);
 
@@ -40,5 +31,32 @@ void main() {
       container.read(graphQlPublicClientProvider).queryManager.requestTimeout,
       expectedTimeout,
     );
+  });
+
+  test('GraphQL clients never persist operation results', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        graphQlStoreProvider.overrideWithValue(InMemoryStore()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final clients = [
+      container.read(graphQlPublicClientProvider),
+      container.read(graphQlClientProvider),
+      container.read(graphQlSubscriptionClientProvider),
+    ];
+
+    for (final client in clients) {
+      final policies = client.defaultPolicies;
+      expect(policies.watchQuery.fetch, FetchPolicy.noCache);
+      expect(policies.watchMutation.fetch, FetchPolicy.noCache);
+      expect(policies.query.fetch, FetchPolicy.noCache);
+      expect(policies.mutate.fetch, FetchPolicy.noCache);
+      expect(policies.subscribe.fetch, FetchPolicy.noCache);
+    }
   });
 }

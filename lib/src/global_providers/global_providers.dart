@@ -67,12 +67,21 @@ Link _createGraphQlHttpLink(Ref ref) {
 
 GraphQLClient _createGraphQlClient(Ref ref, Link link) => GraphQLClient(
       link: LoggerLink().concat(link),
-      defaultPolicies: DefaultPolicies(
-        query: Policies(fetch: FetchPolicy.noCache),
-      ),
+      defaultPolicies: _noCachePolicies(),
       queryRequestTimeout: Duration(milliseconds: _serverRequestTimeoutMs(ref)),
-      cache: GraphQLCache(store: ref.watch(hiveStoreProvider)),
+      cache: GraphQLCache(store: ref.watch(graphQlStoreProvider)),
     );
+
+DefaultPolicies _noCachePolicies() {
+  Policies noCache() => Policies(fetch: FetchPolicy.noCache);
+  return DefaultPolicies(
+    watchQuery: noCache(),
+    watchMutation: noCache(),
+    query: noCache(),
+    mutate: noCache(),
+    subscribe: noCache(),
+  );
+}
 
 @riverpod
 GraphQLClient graphQlPublicClient(Ref ref) =>
@@ -156,10 +165,8 @@ GraphQLClient graphQlSubscriptionClient(Ref ref) {
   final loggerLink = LoggerLink();
   return GraphQLClient(
     link: loggerLink.concat(link),
-    defaultPolicies: DefaultPolicies(
-      query: Policies(fetch: FetchPolicy.noCache),
-    ),
-    cache: GraphQLCache(store: ref.watch(hiveStoreProvider)),
+    defaultPolicies: _noCachePolicies(),
+    cache: GraphQLCache(store: ref.watch(graphQlStoreProvider)),
   );
 }
 
@@ -212,7 +219,7 @@ class L10n extends _$L10n with SharedPreferenceClientMixin<Locale> {
 SharedPreferences sharedPreferences(ref) => throw UnimplementedError();
 
 @riverpod
-HiveStore hiveStore(Ref ref) => throw UnimplementedError();
+Store graphQlStore(Ref ref) => throw UnimplementedError();
 
 @riverpod
 Queue rateLimitQueue(Ref ref, [String? query]) {

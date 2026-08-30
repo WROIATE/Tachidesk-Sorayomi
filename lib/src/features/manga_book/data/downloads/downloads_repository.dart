@@ -102,7 +102,7 @@ class DownloadsRepository {
       final page = await client
           .query$GetDownloadedChapterPage(
             Options$Query$GetDownloadedChapterPage(
-              fetchPolicy: FetchPolicy.networkOnly,
+              fetchPolicy: FetchPolicy.noCache,
               variables: Variables$Query$GetDownloadedChapterPage(
                 after: after,
                 condition: Input$ChapterConditionInput(
