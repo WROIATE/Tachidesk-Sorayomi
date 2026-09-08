@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,7 @@ import 'package:tachidesk_sorayomi/src/widgets/flutter_codec_animated_image.dart
 void main() {
   late Directory temporaryDirectory;
   late File animatedGif;
+  late File tallImage;
 
   setUp(() async {
     temporaryDirectory = await Directory.systemTemp.createTemp(
@@ -15,6 +17,17 @@ void main() {
     );
     animatedGif = File('${temporaryDirectory.path}/animated.gif');
     await animatedGif.writeAsBytes(base64Decode(_fourFrameGifBase64));
+    tallImage = File('${temporaryDirectory.path}/tall.png');
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawRect(
+      const Rect.fromLTWH(0, 0, 10, 100),
+      Paint()..color = Colors.blue,
+    );
+    final image = await recorder.endRecording().toImage(10, 100);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    await tallImage.writeAsBytes(data!.buffer.asUint8List());
   });
 
   tearDown(() async {
@@ -90,6 +103,46 @@ void main() {
     }
 
     expect(resumedFrame, isNot(same(pausedFrame)));
+  });
+
+  testWidgets('uses the decoded aspect ratio in a vertical reader', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 100,
+            height: 300,
+            child: SingleChildScrollView(
+              child: FlutterCodecAnimatedImage(
+                filePath: tallImage.path,
+                fit: BoxFit.fitWidth,
+                active: true,
+                targetWidth: 100,
+                errorBuilder: (_) => const Text('decode error'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final decodedImage = find.byKey(
+      const ValueKey('flutter-codec-animated-image-frame'),
+    );
+    for (var attempt = 0;
+        attempt < 20 && decodedImage.evaluate().isEmpty;
+        attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+
+    expect(find.text('decode error'), findsNothing);
+    expect(decodedImage, findsOneWidget);
+    expect(tester.getSize(decodedImage), const Size(100, 1000));
   });
 }
 

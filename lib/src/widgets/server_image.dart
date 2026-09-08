@@ -67,7 +67,7 @@ class ServerImage extends HookConsumerWidget {
     this.fit,
     this.appendApiToUrl = false,
     this.progressIndicatorBuilder,
-    this.wrapper,
+    this.placeholderWrapper,
     this.showReloadButton = false,
     this.retryAfterFailure,
     this.preferFlutterCodec = false,
@@ -81,7 +81,7 @@ class ServerImage extends HookConsumerWidget {
   final bool appendApiToUrl;
   final Widget Function(BuildContext, String, DownloadProgress)?
       progressIndicatorBuilder;
-  final Widget Function(Widget child)? wrapper;
+  final Widget Function(Widget child)? placeholderWrapper;
   final bool showReloadButton;
   final Future<void>? retryAfterFailure;
   final bool preferFlutterCodec;
@@ -178,7 +178,7 @@ class ServerImage extends HookConsumerWidget {
       DownloadProgress progress,
     ) =>
         AppUtils.wrapOn(
-          wrapper,
+          placeholderWrapper,
           progressIndicatorBuilder?.call(context, url, progress) ??
               const CenterSorayomiShimmerIndicator(),
         );
@@ -213,11 +213,14 @@ class ServerImage extends HookConsumerWidget {
     }
 
     Widget errorWidget(BuildContext context, String error, stackTrace) {
-      return AppUtils.wrapOn(wrapper, errorContent(context));
+      return AppUtils.wrapOn(placeholderWrapper, errorContent(context));
     }
 
     if (isUiLoggedIn && accessToken == null) {
-      return AppUtils.wrapOn(wrapper, const CenterSorayomiShimmerIndicator());
+      return AppUtils.wrapOn(
+        placeholderWrapper,
+        const CenterSorayomiShimmerIndicator(),
+      );
     }
 
     void retryOnFailure(Object _) {
@@ -240,7 +243,10 @@ class ServerImage extends HookConsumerWidget {
 
     if (imageFile != null) {
       if (imageFileSnapshot.connectionState != ConnectionState.done) {
-        return AppUtils.wrapOn(wrapper, const CenterSorayomiShimmerIndicator());
+        return AppUtils.wrapOn(
+          placeholderWrapper,
+          const CenterSorayomiShimmerIndicator(),
+        );
       }
       if (imageFileSnapshot.hasError) {
         return errorWidget(context, baseApi, imageFileSnapshot.error);
@@ -248,14 +254,14 @@ class ServerImage extends HookConsumerWidget {
       final loadedImage = imageFileSnapshot.data;
       if (loadedImage != null) {
         if (!loadedImage.isAnimated) {
-          return AppUtils.wrapOn(
-            wrapper,
-            EvictingFileImage(
-              key: key.value,
-              filePath: loadedImage.path,
-              fit: fit ?? BoxFit.cover,
-              evictFromMemoryOnDispose: evictFromMemoryOnDispose,
-              errorBuilder: errorContent,
+          return EvictingFileImage(
+            key: key.value,
+            filePath: loadedImage.path,
+            fit: fit ?? BoxFit.cover,
+            evictFromMemoryOnDispose: evictFromMemoryOnDispose,
+            errorBuilder: (context) => AppUtils.wrapOn(
+              placeholderWrapper,
+              errorContent(context),
             ),
           );
         }
@@ -263,15 +269,19 @@ class ServerImage extends HookConsumerWidget {
         final targetWidth = (MediaQuery.sizeOf(context).width *
                 MediaQuery.devicePixelRatioOf(context))
             .ceil();
-        return AppUtils.wrapOn(
-          wrapper,
-          FlutterCodecAnimatedImage(
-            key: key.value,
-            filePath: loadedImage.path,
-            fit: fit ?? BoxFit.cover,
-            active: isAnimationActive,
-            targetWidth: targetWidth,
-            errorBuilder: errorContent,
+        return FlutterCodecAnimatedImage(
+          key: key.value,
+          filePath: loadedImage.path,
+          fit: fit ?? BoxFit.cover,
+          active: isAnimationActive,
+          targetWidth: targetWidth,
+          loadingBuilder: (_) => AppUtils.wrapOn(
+            placeholderWrapper,
+            const CenterSorayomiShimmerIndicator(),
+          ),
+          errorBuilder: (context) => AppUtils.wrapOn(
+            placeholderWrapper,
+            errorContent(context),
           ),
         );
       }

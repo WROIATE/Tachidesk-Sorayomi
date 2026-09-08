@@ -237,7 +237,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
                   value: downloadProgress.progress,
                 ),
               ),
-              wrapper: (Widget child) => SizedBox(
+              placeholderWrapper: (Widget child) => SizedBox(
                 height: scrollDirection == Axis.vertical
                     ? context.height * .7
                     : null,

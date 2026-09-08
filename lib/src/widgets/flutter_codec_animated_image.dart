@@ -20,6 +20,7 @@ class FlutterCodecAnimatedImage extends StatefulWidget {
     required this.active,
     required this.targetWidth,
     required this.errorBuilder,
+    this.loadingBuilder,
   });
 
   final String filePath;
@@ -27,6 +28,7 @@ class FlutterCodecAnimatedImage extends StatefulWidget {
   final bool active;
   final int targetWidth;
   final WidgetBuilder errorBuilder;
+  final WidgetBuilder? loadingBuilder;
 
   @override
   State<FlutterCodecAnimatedImage> createState() =>
@@ -45,7 +47,6 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
   Duration _frameDeadline = Duration.zero;
   int _framesEmitted = 0;
   int _generation = 0;
-  bool _loading = true;
   bool _hasError = false;
 
   @override
@@ -75,7 +76,6 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
   void _startDecode() {
     final generation = _stopPlayback();
     if (_image == null) {
-      _loading = true;
       _hasError = false;
     }
     unawaited(
@@ -202,7 +202,6 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
     final previousImage = _image;
     setState(() {
       _image = image;
-      _loading = false;
       _hasError = false;
     });
     if (previousImage != null) {
@@ -216,7 +215,6 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
     if (!_isCurrent(generation)) return;
     _stopPlayback();
     setState(() {
-      _loading = false;
       _hasError = true;
     });
   }
@@ -242,23 +240,23 @@ class _FlutterCodecAnimatedImageState extends State<FlutterCodecAnimatedImage>
 
   @override
   Widget build(BuildContext context) {
+    final Widget child;
+    if (_image != null) {
+      child = RawImage(
+        key: const ValueKey('flutter-codec-animated-image-frame'),
+        image: _image,
+        fit: widget.fit,
+      );
+    } else if (_hasError) {
+      child = widget.errorBuilder(context);
+    } else {
+      child = widget.loadingBuilder?.call(context) ??
+          const CenterSorayomiShimmerIndicator();
+    }
+
     return Semantics(
       image: true,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (_image != null)
-            RawImage(
-              key: const ValueKey('flutter-codec-animated-image-frame'),
-              image: _image,
-              fit: widget.fit,
-            ),
-          if (_loading)
-            const CenterSorayomiShimmerIndicator()
-          else if (_hasError)
-            widget.errorBuilder(context),
-        ],
-      ),
+      child: child,
     );
   }
 }
