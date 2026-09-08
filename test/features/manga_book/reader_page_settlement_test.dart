@@ -169,6 +169,60 @@ void main() {
     );
   });
 
+  testWidgets('continuous reader remembers page ratios after rebuilding', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'readerOverlay': true,
+      'swipeToggle': false,
+      'lastPageSwipeEnabled': false,
+    });
+    final preferences = await SharedPreferences.getInstance();
+    late StateSetter rebuild;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          getNextAndPreviousChaptersProvider(
+            mangaId: 1,
+            chapterId: 1,
+          ).overrideWith((_) => null),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              rebuild = setState;
+              return ContinuousReaderMode(
+                manga: _manga,
+                chapter: _chapter,
+                chapterPages: _chapterPages,
+                initialPage: 0,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final firstBuild = _serverImage(tester, '/page-1');
+    expect(firstBuild.placeholderAspectRatio, isNull);
+    firstBuild.onAspectRatioResolved!(0.1);
+
+    rebuild(() {});
+    await tester.pump();
+
+    expect(_serverImage(tester, '/page-1').placeholderAspectRatio, 0.1);
+  });
+
   testWidgets('paged reader automatically advances with a smooth transition', (
     tester,
   ) async {

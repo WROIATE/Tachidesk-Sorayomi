@@ -73,6 +73,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
     final ItemPositionsListener positionsListener = useMemoized(
       () => ItemPositionsListener.create(),
     );
+    final Map<String, double> pageAspectRatios = useMemoized(
+      () => <String, double>{},
+      [chapter.id],
+    );
 
     final ValueNotifier<int> currentIndex = useState(
       chapterPages.pages.isEmpty
@@ -222,16 +226,21 @@ class ContinuousReaderMode extends HookConsumerWidget {
           separatorBuilder: (BuildContext context, int index) =>
               showSeparator ? const Gap(16) : const SizedBox.shrink(),
           itemBuilder: (BuildContext context, int index) {
+            final imageUrl = chapterPages.pages[index];
             final Widget image = ServerImage(
               showReloadButton: true,
               fit: scrollDirection == Axis.vertical
                   ? BoxFit.fitWidth
                   : BoxFit.fitHeight,
               appendApiToUrl: false,
-              imageUrl: chapterPages.pages[index],
+              imageUrl: imageUrl,
               evictFromMemoryOnDispose: true,
               preferFlutterCodec: !kIsWeb && Platform.isAndroid,
               isAnimationActive: index == currentIndex.value,
+              placeholderAspectRatio: pageAspectRatios[imageUrl],
+              onAspectRatioResolved: (aspectRatio) {
+                pageAspectRatios[imageUrl] = aspectRatio;
+              },
               progressIndicatorBuilder: (_, __, downloadProgress) => Center(
                 child: CircularProgressIndicator(
                   value: downloadProgress.progress,

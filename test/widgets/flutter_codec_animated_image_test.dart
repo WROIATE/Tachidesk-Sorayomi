@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tachidesk_sorayomi/src/utils/animated_image_file_loader_io.dart';
 import 'package:tachidesk_sorayomi/src/widgets/flutter_codec_animated_image.dart';
 
 void main() {
@@ -143,6 +144,16 @@ void main() {
     expect(find.text('decode error'), findsNothing);
     expect(decodedImage, findsOneWidget);
     expect(tester.getSize(decodedImage), const Size(100, 1000));
+  });
+
+  testWidgets('loads the intrinsic page aspect ratio from the cached file', (
+    tester,
+  ) async {
+    final aspectRatio = await tester.runAsync(
+      () => readImageAspectRatio(tallImage),
+    );
+
+    expect(aspectRatio, 0.1);
   });
 }
 

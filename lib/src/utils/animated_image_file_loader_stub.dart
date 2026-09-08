@@ -6,7 +6,11 @@
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
-typedef LoadedImageFile = ({String path, bool isAnimated});
+typedef LoadedImageFile = ({
+  String path,
+  bool isAnimated,
+  double? aspectRatio,
+});
 
 Future<LoadedImageFile?> loadImageFile({
   required CacheManager cacheManager,

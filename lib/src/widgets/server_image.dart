@@ -68,6 +68,8 @@ class ServerImage extends HookConsumerWidget {
     this.appendApiToUrl = false,
     this.progressIndicatorBuilder,
     this.placeholderWrapper,
+    this.placeholderAspectRatio,
+    this.onAspectRatioResolved,
     this.showReloadButton = false,
     this.retryAfterFailure,
     this.preferFlutterCodec = false,
@@ -82,6 +84,8 @@ class ServerImage extends HookConsumerWidget {
   final Widget Function(BuildContext, String, DownloadProgress)?
       progressIndicatorBuilder;
   final Widget Function(Widget child)? placeholderWrapper;
+  final double? placeholderAspectRatio;
+  final ValueChanged<double>? onAspectRatioResolved;
   final bool showReloadButton;
   final Future<void>? retryAfterFailure;
   final bool preferFlutterCodec;
@@ -164,6 +168,17 @@ class ServerImage extends HookConsumerWidget {
       imageFile,
       preserveState: false,
     );
+    final loadedImage = imageFileSnapshot.data;
+    final resolvedAspectRatio = loadedImage?.aspectRatio;
+
+    useEffect(() {
+      if (resolvedAspectRatio != null &&
+          resolvedAspectRatio.isFinite &&
+          resolvedAspectRatio > 0) {
+        onAspectRatioResolved?.call(resolvedAspectRatio);
+      }
+      return null;
+    }, [baseApi, resolvedAspectRatio]);
 
     final ImageRenderMethodForWeb renderMethod;
     if (authorization != null) {
@@ -172,13 +187,30 @@ class ServerImage extends HookConsumerWidget {
       renderMethod = ImageRenderMethodForWeb.HtmlImage;
     }
 
-    finalProgressIndicatorBuilder(
+    Widget wrapWithAspectRatio(Widget child, double? aspectRatio) {
+      if (aspectRatio != null && aspectRatio.isFinite && aspectRatio > 0) {
+        return AspectRatio(aspectRatio: aspectRatio, child: child);
+      }
+      return child;
+    }
+
+    Widget wrapPlaceholder(
+      Widget child, {
+      double? resolvedAspectRatio,
+    }) {
+      final aspectRatio = resolvedAspectRatio ?? placeholderAspectRatio;
+      if (aspectRatio != null && aspectRatio.isFinite && aspectRatio > 0) {
+        return wrapWithAspectRatio(child, aspectRatio);
+      }
+      return AppUtils.wrapOn(placeholderWrapper, child);
+    }
+
+    Widget finalProgressIndicatorBuilder(
       BuildContext context,
       String url,
       DownloadProgress progress,
     ) =>
-        AppUtils.wrapOn(
-          placeholderWrapper,
+        wrapPlaceholder(
           progressIndicatorBuilder?.call(context, url, progress) ??
               const CenterSorayomiShimmerIndicator(),
         );
@@ -213,14 +245,11 @@ class ServerImage extends HookConsumerWidget {
     }
 
     Widget errorWidget(BuildContext context, String error, stackTrace) {
-      return AppUtils.wrapOn(placeholderWrapper, errorContent(context));
+      return wrapPlaceholder(errorContent(context));
     }
 
     if (isUiLoggedIn && accessToken == null) {
-      return AppUtils.wrapOn(
-        placeholderWrapper,
-        const CenterSorayomiShimmerIndicator(),
-      );
+      return wrapPlaceholder(const CenterSorayomiShimmerIndicator());
     }
 
     void retryOnFailure(Object _) {
@@ -243,46 +272,47 @@ class ServerImage extends HookConsumerWidget {
 
     if (imageFile != null) {
       if (imageFileSnapshot.connectionState != ConnectionState.done) {
-        return AppUtils.wrapOn(
-          placeholderWrapper,
-          const CenterSorayomiShimmerIndicator(),
-        );
+        return wrapPlaceholder(const CenterSorayomiShimmerIndicator());
       }
       if (imageFileSnapshot.hasError) {
         return errorWidget(context, baseApi, imageFileSnapshot.error);
       }
-      final loadedImage = imageFileSnapshot.data;
       if (loadedImage != null) {
+        final contentAspectRatio =
+            loadedImage.aspectRatio ?? placeholderAspectRatio;
         if (!loadedImage.isAnimated) {
-          return EvictingFileImage(
-            key: key.value,
-            filePath: loadedImage.path,
-            fit: fit ?? BoxFit.cover,
-            evictFromMemoryOnDispose: evictFromMemoryOnDispose,
-            errorBuilder: (context) => AppUtils.wrapOn(
-              placeholderWrapper,
-              errorContent(context),
+          return wrapWithAspectRatio(
+            EvictingFileImage(
+              key: key.value,
+              filePath: loadedImage.path,
+              fit: fit ?? BoxFit.cover,
+              evictFromMemoryOnDispose: evictFromMemoryOnDispose,
+              errorBuilder: errorContent,
             ),
+            contentAspectRatio,
           );
         }
 
         final targetWidth = (MediaQuery.sizeOf(context).width *
                 MediaQuery.devicePixelRatioOf(context))
             .ceil();
-        return FlutterCodecAnimatedImage(
-          key: key.value,
-          filePath: loadedImage.path,
-          fit: fit ?? BoxFit.cover,
-          active: isAnimationActive,
-          targetWidth: targetWidth,
-          loadingBuilder: (_) => AppUtils.wrapOn(
-            placeholderWrapper,
-            const CenterSorayomiShimmerIndicator(),
+        return wrapWithAspectRatio(
+          FlutterCodecAnimatedImage(
+            key: key.value,
+            filePath: loadedImage.path,
+            fit: fit ?? BoxFit.cover,
+            active: isAnimationActive,
+            targetWidth: targetWidth,
+            loadingBuilder: contentAspectRatio == null
+                ? (_) => wrapPlaceholder(
+                      const CenterSorayomiShimmerIndicator(),
+                    )
+                : null,
+            errorBuilder: contentAspectRatio == null
+                ? (context) => wrapPlaceholder(errorContent(context))
+                : errorContent,
           ),
-          errorBuilder: (context) => AppUtils.wrapOn(
-            placeholderWrapper,
-            errorContent(context),
-          ),
+          contentAspectRatio,
         );
       }
     }
