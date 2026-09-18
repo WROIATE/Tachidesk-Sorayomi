@@ -1374,5 +1374,8 @@
     "autoPageTurnTransitionFade": "Fade in and out",
     "autoPageTurnTransitionCrossFade": "Crossfade",
     "startAutoPageTurn": "Start auto page turn",
-    "pauseAutoPageTurn": "Pause auto page turn"
+    "pauseAutoPageTurn": "Pause auto page turn",
+    "copyImage": "Copy image",
+    "share": "Share",
+    "imageSaved": "Image saved"
 }

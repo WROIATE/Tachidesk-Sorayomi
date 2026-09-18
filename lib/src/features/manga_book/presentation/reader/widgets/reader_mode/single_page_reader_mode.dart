@@ -59,6 +59,24 @@ class SinglePageReaderMode extends HookConsumerWidget {
     final currentIndex = useState(scrollController.initialPage);
     final isZoomInteractionLocked = useState(false);
     final zoomController = useMemoized(ReaderInteractiveViewerController.new);
+    final pageAspectRatios = useRef(<int, double>{});
+    final pageFilePaths = useRef(<int, String>{});
+    final currentPageAspectRatio = useState<double?>(null);
+    final currentPageFilePath = useState<String?>(null);
+
+    useEffect(() {
+      pageAspectRatios.value.clear();
+      pageFilePaths.value.clear();
+      currentPageAspectRatio.value = null;
+      currentPageFilePath.value = null;
+      return null;
+    }, [chapter.id]);
+
+    useEffect(() {
+      currentPageAspectRatio.value = pageAspectRatios.value[currentIndex.value];
+      currentPageFilePath.value = pageFilePaths.value[currentIndex.value];
+      return null;
+    }, [chapter.id, currentIndex.value]);
 
     useEffect(() {
       int currentPage = currentIndex.value;
@@ -96,6 +114,16 @@ class SinglePageReaderMode extends HookConsumerWidget {
     final autoPageTurnOpacity = useState(1.0);
     final autoPageTurnCrossFadeTarget = useState<int?>(null);
     final autoPageTurnCrossFadeOpacity = useState(0.0);
+
+    Future<void> previousPage() => scrollController.previousPage(
+          duration: isAnimationEnabled ? kDuration : kInstantDuration,
+          curve: kCurve,
+        );
+
+    Future<void> nextPage() => scrollController.nextPage(
+          duration: isAnimationEnabled ? kDuration : kInstantDuration,
+          curve: kCurve,
+        );
 
     void clearAutoPageTurnCrossFade() {
       autoPageTurnCrossFadeTarget.value = null;
@@ -183,16 +211,11 @@ class SinglePageReaderMode extends HookConsumerWidget {
       currentIndex: currentIndex.value,
       onChanged: (index) => scrollController.jumpToPage(index),
       showReaderLayoutAnimation: showReaderLayoutAnimation,
-      onPrevious: () => scrollController.previousPage(
-        duration: isAnimationEnabled ? kDuration : kInstantDuration,
-        curve: kCurve,
-      ),
-      onNext: () => scrollController.nextPage(
-        duration: isAnimationEnabled ? kDuration : kInstantDuration,
-        curve: kCurve,
-      ),
+      onPrevious: previousPage,
+      onNext: nextPage,
       pageController: scrollController,
       onDoubleTap: zoomController.toggleZoomAt,
+      currentPageFilePath: currentPageFilePath.value,
       readerAction: IconButton(
         key: const ValueKey('auto-page-turn-toggle'),
         tooltip: autoPageTurnActive.value
@@ -219,6 +242,11 @@ class SinglePageReaderMode extends HookConsumerWidget {
         enabled: isPinchToZoomEnabled,
         resetToken: currentIndex.value,
         controller: zoomController,
+        contentAspectRatio: currentPageAspectRatio.value,
+        pageAxis: scrollDirection,
+        reversePageDirection: reverse,
+        onPreviousPage: previousPage,
+        onNextPage: nextPage,
         onInteractionLockChanged: (locked) =>
             isZoomInteractionLocked.value = locked,
         child: NotificationListener<ScrollEndNotification>(
@@ -260,6 +288,19 @@ class SinglePageReaderMode extends HookConsumerWidget {
                       context,
                       index,
                       isAnimationActive: index == currentIndex.value,
+                      placeholderAspectRatio: pageAspectRatios.value[index],
+                      onAspectRatioResolved: (aspectRatio) {
+                        pageAspectRatios.value[index] = aspectRatio;
+                        if (currentIndex.value == index) {
+                          currentPageAspectRatio.value = aspectRatio;
+                        }
+                      },
+                      onFileResolved: (filePath) {
+                        pageFilePaths.value[index] = filePath;
+                        if (currentIndex.value == index) {
+                          currentPageFilePath.value = filePath;
+                        }
+                      },
                     ),
                     itemCount: chapterPages.pages.isEmpty
                         ? 1
@@ -286,6 +327,9 @@ class SinglePageReaderMode extends HookConsumerWidget {
     BuildContext context,
     int index, {
     bool isAnimationActive = true,
+    double? placeholderAspectRatio,
+    ValueChanged<double>? onAspectRatioResolved,
+    ValueChanged<String>? onFileResolved,
   }) {
     if (chapterPages.pages.isEmpty || index >= chapterPages.pages.length) {
       return const Center(child: CenterSorayomiShimmerIndicator());
@@ -300,6 +344,9 @@ class SinglePageReaderMode extends HookConsumerWidget {
       preferFlutterCodec: !kIsWeb && Platform.isAndroid,
       isAnimationActive: isAnimationActive,
       evictFromMemoryOnDispose: true,
+      placeholderAspectRatio: placeholderAspectRatio,
+      onAspectRatioResolved: onAspectRatioResolved,
+      onFileResolved: onFileResolved,
       progressIndicatorBuilder: (context, url, downloadProgress) =>
           CenterSorayomiShimmerIndicator(value: downloadProgress.progress),
     );

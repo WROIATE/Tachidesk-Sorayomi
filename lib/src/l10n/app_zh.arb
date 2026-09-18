@@ -1430,5 +1430,8 @@
   "autoPageTurnTransitionFade": "渐入渐出",
   "autoPageTurnTransitionCrossFade": "交叉淡化",
   "startAutoPageTurn": "开始自动翻页",
-  "pauseAutoPageTurn": "暂停自动翻页"
+  "pauseAutoPageTurn": "暂停自动翻页",
+  "copyImage": "复制图片",
+  "share": "分享",
+  "imageSaved": "图片已保存"
 }

@@ -13,7 +13,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import '../../../../../constants/app_constants.dart';
 import '../../../../../constants/app_sizes.dart';
 import '../../../../../constants/db_keys.dart';
 import '../../../../../constants/enum.dart';
@@ -26,7 +25,6 @@ import '../../../../../widgets/popup_widgets/radio_list_popup.dart';
 import '../../../../settings/presentation/reader/widgets/reader_auto_page_turn/reader_auto_page_turn_settings.dart';
 import '../../../../settings/presentation/reader/widgets/reader_invert_tap_tile/reader_invert_tap_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_last_page_swipe_tile/reader_last_page_swipe_tile.dart';
-import '../../../../settings/presentation/reader/widgets/reader_magnifier_size_slider/reader_magnifier_size_slider.dart';
 import '../../../../settings/presentation/reader/widgets/reader_mode_tile/reader_mode_tile.dart';
 import '../../../../settings/presentation/reader/widgets/reader_padding_slider/reader_padding_slider.dart';
 import '../../../../settings/presentation/reader/widgets/reader_swipe_toggle_tile/reader_swipe_chapter_toggle_tile.dart';
@@ -45,6 +43,8 @@ import '../utils/last_page_swipe_utils.dart';
 import 'directional_swipe_gesture_handler.dart';
 import 'page_number_slider.dart';
 import 'reader_navigation_layout/reader_navigation_layout.dart';
+import 'reader_page_actions_sheet.dart';
+import 'reader_page_indicator.dart';
 
 class ReaderWrapper extends HookConsumerWidget {
   const ReaderWrapper({
@@ -62,6 +62,7 @@ class ReaderWrapper extends HookConsumerWidget {
     this.pageController,
     this.onDoubleTap,
     this.readerAction,
+    this.currentPageFilePath,
   });
   final Widget child;
   final MangaDto manga;
@@ -76,6 +77,7 @@ class ReaderWrapper extends HookConsumerWidget {
   final PageController? pageController;
   final ValueChanged<Offset>? onDoubleTap;
   final Widget? readerAction;
+  final String? currentPageFilePath;
 
   /// Determine transition direction based on reading mode for proper animations
   /// Returns true for vertical transitions, false for horizontal transitions
@@ -143,19 +145,11 @@ class ReaderWrapper extends HookConsumerWidget {
     final bool lastPageSwipeEnabled = ref.watch(lastPageSwipeEnabledProvider) ??
         DBKeys.lastPageSwipeEnabled.initial;
 
-    final double localMangaReaderMagnifierSize =
-        ref.watch(readerMagnifierSizeKeyProvider) ??
-            DBKeys.readerMagnifierSize.initial;
-
     final visibility = ref.watch(readerOverlayVisibilityProvider);
     final visibilityController =
         ref.read(readerOverlayVisibilityProvider.notifier);
     final mangaReaderPadding =
         useState(manga.metaData.readerPadding ?? localMangaReaderPadding);
-    final mangaReaderMagnifierSize = useState(
-      manga.metaData.readerMagnifierSize ?? localMangaReaderMagnifierSize,
-    );
-
     final mangaReaderMode =
         manga.metaData.readerMode ?? ReaderMode.defaultReader;
     final mangaReaderNavigationLayout = manga.metaData.readerNavigationLayout ??
@@ -428,19 +422,6 @@ class ReaderWrapper extends HookConsumerWidget {
                   ref.invalidate(mangaWithIdProvider(mangaId: manga.id));
                 },
               ),
-              AsyncReaderMagnifierSizeSlider(
-                readerMagnifierSize: mangaReaderMagnifierSize,
-                onChanged: (value) {
-                  AsyncValue.guard(
-                    () => ref.read(mangaBookRepositoryProvider).patchMangaMeta(
-                          mangaId: manga.id,
-                          key: MangaMetaKeys.readerMagnifierSize.key,
-                          value: value,
-                        ),
-                  );
-                  ref.invalidate(mangaWithIdProvider(mangaId: manga.id));
-                },
-              ),
             ],
           ),
         ),
@@ -585,37 +566,65 @@ class ReaderWrapper extends HookConsumerWidget {
             },
             child: Focus(
               autofocus: true,
-              child: Listener(
-                child: RepaintBoundary(
-                  child: ReaderView(
-                    toggleVisibility: visibilityController.toggle,
-                    scrollDirection: scrollDirection,
-                    mangaId: manga.id,
-                    mangaReaderPadding: mangaReaderPadding.value,
-                    mangaReaderMagnifierSize: mangaReaderMagnifierSize.value,
-                    onNext: enhancedOnNext,
-                    onPrevious: enhancedOnPrevious,
-                    mangaReaderNavigationLayout: mangaReaderNavigationLayout,
-                    prevNextChapterPair: nextPrevChapterPair,
-                    readerSwipeChapterToggle: readerSwipeChapterToggle,
-                    lastPageSwipeEnabled: lastPageSwipeEnabled,
-                    resolvedReaderMode: resolvedReaderMode,
-                    currentIndex: currentIndex,
-                    chapterPages: chapterPages,
-                    showReaderLayoutAnimation: showReaderLayoutAnimation,
-                    pageController: pageController,
-                    onDoubleTap: onDoubleTap,
-                    child: _buildEnhancedChildWithPageDetection(
-                      child,
-                      lastPageSwipeEnabled,
-                      readerSwipeChapterToggle,
-                      onNextChapter,
-                      onPreviousChapter,
-                      resolvedReaderMode,
-                      scrollDirection,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  RepaintBoundary(
+                    child: ReaderView(
+                      toggleVisibility: visibilityController.toggle,
+                      onLongPress: () {
+                        final filePath = currentPageFilePath;
+                        if (filePath == null) return;
+                        showReaderPageActionsSheet(
+                          context,
+                          filePath: filePath,
+                          mangaTitle: manga.title,
+                          chapterTitle: chapter.name,
+                          pageNumber: currentIndex + 1,
+                        );
+                      },
+                      scrollDirection: scrollDirection,
+                      mangaId: manga.id,
+                      mangaReaderPadding: mangaReaderPadding.value,
+                      onNext: enhancedOnNext,
+                      onPrevious: enhancedOnPrevious,
+                      mangaReaderNavigationLayout: mangaReaderNavigationLayout,
+                      prevNextChapterPair: nextPrevChapterPair,
+                      readerSwipeChapterToggle: readerSwipeChapterToggle,
+                      lastPageSwipeEnabled: lastPageSwipeEnabled,
+                      resolvedReaderMode: resolvedReaderMode,
+                      currentIndex: currentIndex,
+                      chapterPages: chapterPages,
+                      showReaderLayoutAnimation: showReaderLayoutAnimation,
+                      pageController: pageController,
+                      onDoubleTap: onDoubleTap,
+                      child: _buildEnhancedChildWithPageDetection(
+                        child,
+                        lastPageSwipeEnabled,
+                        readerSwipeChapterToggle,
+                        onNextChapter,
+                        onPreviousChapter,
+                        resolvedReaderMode,
+                        scrollDirection,
+                      ),
                     ),
                   ),
-                ),
+                  if (!visibility && chapterPages.pages.isNotEmpty)
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: IgnorePointer(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: ReaderPageIndicator(
+                              currentPage: currentIndex + 1,
+                              totalPages: chapterPages.pages.length,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -851,10 +860,10 @@ class ReaderView extends HookWidget {
   const ReaderView({
     super.key,
     required this.toggleVisibility,
+    required this.onLongPress,
     required this.scrollDirection,
     required this.mangaId,
     required this.mangaReaderPadding,
-    required this.mangaReaderMagnifierSize,
     required this.onNext,
     required this.onPrevious,
     required this.prevNextChapterPair,
@@ -871,10 +880,10 @@ class ReaderView extends HookWidget {
   });
 
   final VoidCallback toggleVisibility;
+  final VoidCallback onLongPress;
   final Axis scrollDirection;
   final int mangaId;
   final double mangaReaderPadding;
-  final double mangaReaderMagnifierSize;
   final VoidCallback onNext;
   final VoidCallback onPrevious;
   final ({ChapterDto? first, ChapterDto? second})? prevNextChapterPair;
@@ -891,14 +900,11 @@ class ReaderView extends HookWidget {
 
   /// Gesture handling extracted for better performance and maintainability.
   /// This widget focuses on:
-  /// - Magnification handling
   /// - Navigation layout overlay
   /// - Basic UI state management
 
   @override
   Widget build(BuildContext context) {
-    final showMagnification = useState(false);
-    final dragGesturePosition = useState(Offset.zero);
     final doubleTapGlobalPosition = useRef<Offset?>(null);
     void handleDoubleTapDown(TapDownDetails details) {
       doubleTapGlobalPosition.value = details.globalPosition;
@@ -909,12 +915,6 @@ class ReaderView extends HookWidget {
       if (globalPosition != null) onDoubleTap?.call(globalPosition);
       doubleTapGlobalPosition.value = null;
     }
-
-    final positionOffset = kMagnifierPosition(
-      dragGesturePosition.value,
-      context.mediaQuerySize,
-      mangaReaderMagnifierSize,
-    );
 
     // Build the core reading content wrapped with padding
     Widget content = Padding(
@@ -932,17 +932,23 @@ class ReaderView extends HookWidget {
             ? PrimaryScrollController.of(context) as PageController
             : null);
 
-    content = DirectionalSwipeGestureHandler(
+    content = Stack(
+      children: [
+        content,
+        ReaderNavigationLayoutWidget(
+          onNext: onNext,
+          onPrevious: onPrevious,
+          onDoubleTapDown: handleDoubleTapDown,
+          onDoubleTap: handleDoubleTap,
+          navigationLayout: mangaReaderNavigationLayout,
+          showReaderLayoutAnimation: showReaderLayoutAnimation,
+        ),
+      ],
+    );
+
+    return DirectionalSwipeGestureHandler(
       onTap: toggleVisibility,
-      onLongPressStart: (details) {
-        dragGesturePosition.value = details.localPosition;
-        showMagnification.value = true;
-      },
-      onLongPressEnd: (details) {
-        showMagnification.value = false;
-      },
-      onLongPressMoveUpdate: (details) =>
-          dragGesturePosition.value = details.localPosition,
+      onLongPress: onLongPress,
       scrollDirection: scrollDirection,
       readerSwipeChapterToggle: readerSwipeChapterToggle,
       lastPageSwipeEnabled: lastPageSwipeEnabled,
@@ -957,36 +963,6 @@ class ReaderView extends HookWidget {
       onDoubleTapDown: handleDoubleTapDown,
       onDoubleTap: handleDoubleTap,
       child: content,
-    );
-
-    return Stack(
-      children: [
-        content,
-        ReaderNavigationLayoutWidget(
-          onNext: onNext,
-          onPrevious: onPrevious,
-          onDoubleTapDown: handleDoubleTapDown,
-          onDoubleTap: handleDoubleTap,
-          navigationLayout: mangaReaderNavigationLayout,
-          showReaderLayoutAnimation: showReaderLayoutAnimation,
-        ),
-        if (showMagnification.value)
-          Positioned(
-            left: positionOffset.dx,
-            top: positionOffset.dy,
-            child: RawMagnifier(
-              decoration: kMagnifierDecoration,
-              size: kMagnifierSize * mangaReaderMagnifierSize,
-              focalPointOffset: kMagnifierOffset(
-                dragGesturePosition.value,
-                context.mediaQuerySize,
-                mangaReaderMagnifierSize,
-              ),
-              magnificationScale: 2,
-              child: const ColoredBox(color: Color.fromARGB(8, 158, 158, 158)),
-            ),
-          ),
-      ],
     );
   }
 }

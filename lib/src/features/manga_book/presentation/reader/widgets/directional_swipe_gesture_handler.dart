@@ -22,9 +22,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
     super.key,
     required this.child,
     required this.onTap,
-    required this.onLongPressStart,
-    required this.onLongPressEnd,
-    required this.onLongPressMoveUpdate,
+    required this.onLongPress,
     this.onDoubleTapDown,
     this.onDoubleTap,
     required this.scrollDirection,
@@ -42,9 +40,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
 
   final Widget child;
   final VoidCallback onTap;
-  final void Function(LongPressStartDetails) onLongPressStart;
-  final void Function(LongPressEndDetails) onLongPressEnd;
-  final void Function(LongPressMoveUpdateDetails) onLongPressMoveUpdate;
+  final VoidCallback onLongPress;
   final GestureTapDownCallback? onDoubleTapDown;
   final GestureTapCallback? onDoubleTap;
   final Axis scrollDirection;
@@ -109,9 +105,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
     bool Function() hadMultiplePointers,
   ) {
     return GestureDetector(
-      onLongPressStart: onLongPressStart,
-      onLongPressEnd: onLongPressEnd,
-      onLongPressMoveUpdate: onLongPressMoveUpdate,
+      onLongPress: onLongPress,
       onTap: onTap,
       onDoubleTapDown: onDoubleTapDown,
       onDoubleTap: onDoubleTap,
@@ -138,9 +132,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
     bool Function() hadMultiplePointers,
   ) {
     return GestureDetector(
-      onLongPressStart: onLongPressStart,
-      onLongPressEnd: onLongPressEnd,
-      onLongPressMoveUpdate: onLongPressMoveUpdate,
+      onLongPress: onLongPress,
       onTap: onTap,
       onDoubleTapDown: onDoubleTapDown,
       onDoubleTap: onDoubleTap,

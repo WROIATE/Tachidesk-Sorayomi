@@ -22,9 +22,7 @@ void main() {
           onDoubleTapDown: (details) =>
               doubleTapPosition = details.globalPosition,
           onDoubleTap: () => zoomController.toggleZoomAt(doubleTapPosition!),
-          onLongPressStart: (_) {},
-          onLongPressEnd: (_) {},
-          onLongPressMoveUpdate: (_) {},
+          onLongPress: () {},
           scrollDirection: Axis.horizontal,
           readerSwipeChapterToggle: true,
           lastPageSwipeEnabled: false,
@@ -167,9 +165,7 @@ void main() {
       MaterialApp(
         home: DirectionalSwipeGestureHandler(
           onTap: () {},
-          onLongPressStart: (_) {},
-          onLongPressEnd: (_) {},
-          onLongPressMoveUpdate: (_) {},
+          onLongPress: () {},
           scrollDirection: Axis.horizontal,
           readerSwipeChapterToggle: true,
           lastPageSwipeEnabled: false,
@@ -304,6 +300,74 @@ void main() {
 
     expect(controller.value.getMaxScaleOnAxis(), 1);
     expect(interactionLocked, isFalse);
+  });
+
+  testWidgets('zoomed content stays aligned to the image edges', (
+    tester,
+  ) async {
+    final zoomController = ReaderInteractiveViewerController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderInteractiveViewer(
+          enabled: true,
+          resetToken: 0,
+          controller: zoomController,
+          contentAspectRatio: 2,
+          onInteractionLockChanged: (_) {},
+          child: const ColoredBox(color: Colors.red),
+        ),
+      ),
+    );
+
+    zoomController.toggleZoomAt(const Offset(400, 300));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(InteractiveViewer),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+
+    final controller = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+    expect(controller.value.entry(1, 3), closeTo(-400, 0.01));
+  });
+
+  testWidgets('an outward swipe changes pages after zoom reaches an edge', (
+    tester,
+  ) async {
+    final zoomController = ReaderInteractiveViewerController();
+    var nextCalls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderInteractiveViewer(
+          enabled: true,
+          resetToken: 0,
+          controller: zoomController,
+          contentAspectRatio: 2,
+          pageAxis: Axis.horizontal,
+          onNextPage: () => nextCalls++,
+          onInteractionLockChanged: (_) {},
+          child: const ColoredBox(color: Colors.red),
+        ),
+      ),
+    );
+
+    zoomController.toggleZoomAt(const Offset(790, 300));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(InteractiveViewer),
+      const Offset(-160, 0),
+    );
+    await tester.pumpAndSettle();
+
+    expect(nextCalls, 1);
+    final controller = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+    expect(controller.value.getMaxScaleOnAxis(), 1);
   });
 }
 

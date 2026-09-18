@@ -77,6 +77,10 @@ class ContinuousReaderMode extends HookConsumerWidget {
       () => <String, double>{},
       [chapter.id],
     );
+    final Map<String, String> pageFilePaths = useMemoized(
+      () => <String, String>{},
+      [chapter.id],
+    );
 
     final ValueNotifier<int> currentIndex = useState(
       chapterPages.pages.isEmpty
@@ -84,6 +88,14 @@ class ContinuousReaderMode extends HookConsumerWidget {
           : initialPage.clamp(0, chapterPages.pages.length - 1),
     );
     final ValueNotifier<bool> isZoomInteractionLocked = useState(false);
+    final ValueNotifier<String?> currentPageFilePath = useState(null);
+
+    useEffect(() {
+      currentPageFilePath.value = chapterPages.pages.isEmpty
+          ? null
+          : pageFilePaths[chapterPages.pages[currentIndex.value]];
+      return null;
+    }, [chapter.id, currentIndex.value]);
 
     // Passive position tracking that doesn't interfere with scrolling
     final ObjectRef<Timer?> positionUpdateTimer = useRef<Timer?>(null);
@@ -167,6 +179,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
       manga: manga,
       showReaderLayoutAnimation: showReaderLayoutAnimation,
       currentIndex: currentIndex.value,
+      currentPageFilePath: currentPageFilePath.value,
       onChanged: (index) {
         // Mark that we're navigating from slider to prevent position interference
         isNavigatingFromSlider.value = true;
@@ -240,6 +253,12 @@ class ContinuousReaderMode extends HookConsumerWidget {
               placeholderAspectRatio: pageAspectRatios[imageUrl],
               onAspectRatioResolved: (aspectRatio) {
                 pageAspectRatios[imageUrl] = aspectRatio;
+              },
+              onFileResolved: (filePath) {
+                pageFilePaths[imageUrl] = filePath;
+                if (chapterPages.pages[currentIndex.value] == imageUrl) {
+                  currentPageFilePath.value = filePath;
+                }
               },
               progressIndicatorBuilder: (_, __, downloadProgress) => Center(
                 child: CircularProgressIndicator(

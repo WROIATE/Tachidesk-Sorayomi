@@ -21,6 +21,26 @@ void main() {
     await _pumpReader(tester, initialPreferences: const {});
 
     expect(find.byType(AppBar), findsNothing);
+    expect(
+      find.byKey(const ValueKey('reader-page-indicator')),
+      findsOneWidget,
+    );
+    expect(find.text('1 / 1'), findsNWidgets(2));
+  });
+
+  testWidgets('long press opens page actions instead of a magnifier', (
+    tester,
+  ) async {
+    await _pumpReader(tester, initialPreferences: const {});
+
+    await tester.longPress(find.byKey(const ValueKey('reader-page')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('reader-page-actions')), findsOneWidget);
+    expect(find.byIcon(Icons.content_copy_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.share_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.save_alt_rounded), findsOneWidget);
+    expect(find.byType(RawMagnifier), findsNothing);
   });
 
   testWidgets('reader mode dialog stays in the reader navigator', (
@@ -186,6 +206,7 @@ ReaderWrapper _readerWrapper(Fragment$ChapterDto chapter) => ReaderWrapper(
       onNext: () {},
       onPrevious: () {},
       scrollDirection: Axis.horizontal,
+      currentPageFilePath: '/tmp/page.png',
       child: const SizedBox.expand(
         key: ValueKey('reader-page'),
         child: ColoredBox(color: Colors.black),

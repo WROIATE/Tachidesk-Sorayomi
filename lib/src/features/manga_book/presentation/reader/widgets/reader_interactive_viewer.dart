@@ -29,6 +29,11 @@ class ReaderInteractiveViewer extends StatefulWidget {
     required this.onInteractionLockChanged,
     required this.child,
     this.controller,
+    this.contentAspectRatio,
+    this.pageAxis,
+    this.reversePageDirection = false,
+    this.onNextPage,
+    this.onPreviousPage,
   });
 
   final bool enabled;
@@ -36,6 +41,11 @@ class ReaderInteractiveViewer extends StatefulWidget {
   final ValueChanged<bool> onInteractionLockChanged;
   final Widget child;
   final ReaderInteractiveViewerController? controller;
+  final double? contentAspectRatio;
+  final Axis? pageAxis;
+  final bool reversePageDirection;
+  final VoidCallback? onNextPage;
+  final VoidCallback? onPreviousPage;
 
   @override
   State<ReaderInteractiveViewer> createState() =>
@@ -48,6 +58,8 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   static const double _doubleTapScale = 2;
   static const double _maxScale = 5;
   static const double _zoomTolerance = 0.001;
+  static const double _edgeTolerance = 1;
+  static const double _minimumPageSwipeDistance = 56;
 
   final TransformationController _controller = TransformationController();
   final Map<int, Offset> _pointerPositions = <int, Offset>{};
@@ -61,6 +73,8 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   bool _hasMultiplePointers = false;
   bool _isZoomed = false;
   bool _isInteractionLocked = false;
+  _BoundaryPageDirection? _boundaryPageDirection;
+  double _boundarySwipeDistance = 0;
 
   @override
   void initState() {
@@ -82,6 +96,10 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     if ((oldWidget.enabled && !widget.enabled) ||
         oldWidget.resetToken != widget.resetToken) {
       _resetInteraction();
+    } else if (oldWidget.contentAspectRatio != widget.contentAspectRatio) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _constrainCurrentTransform();
+      });
     }
   }
 
@@ -102,6 +120,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     _hasMultiplePointers = false;
     _isZoomed = false;
     _isInteractionLocked = false;
+    _clearBoundarySwipe();
 
     if (wasInteractionLocked) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,8 +146,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     _pinchStartDistance = distance;
   }
 
-  void _updatePinch(PointerMoveEvent event, Size viewportSize) {
-    _pointerPositions[event.pointer] = event.localPosition;
+  void _updatePinch(Size viewportSize) {
     if (_pointerPositions.length < 2) return;
 
     if (_pinchStartMatrix == null ||
@@ -146,23 +164,43 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
         .clamp(_minScale, _maxScale)
         .toDouble();
 
-    var translationX = focalPoint.dx - _pinchSceneFocalPoint!.dx * scale;
-    var translationY = focalPoint.dy - _pinchSceneFocalPoint!.dy * scale;
-    translationX =
-        translationX.clamp(viewportSize.width * (1 - scale), 0.0).toDouble();
-    translationY =
-        translationY.clamp(viewportSize.height * (1 - scale), 0.0).toDouble();
+    final translation = _constrainTranslation(
+      viewportSize: viewportSize,
+      scale: scale,
+      translation: Offset(
+        focalPoint.dx - _pinchSceneFocalPoint!.dx * scale,
+        focalPoint.dy - _pinchSceneFocalPoint!.dy * scale,
+      ),
+    );
 
     final matrix = Matrix4.identity();
     matrix[0] = scale;
     matrix[5] = scale;
-    matrix[12] = translationX;
-    matrix[13] = translationY;
+    matrix[12] = translation.dx;
+    matrix[13] = translation.dy;
     _controller.value = matrix;
     _refreshInteractionState();
   }
 
+  void _updatePointer(PointerMoveEvent event, Size viewportSize) {
+    final previousPosition = _pointerPositions[event.pointer];
+    _pointerPositions[event.pointer] = event.localPosition;
+
+    if (_pointerPositions.length > 1) {
+      _clearBoundarySwipe();
+      _updatePinch(viewportSize);
+      return;
+    }
+
+    if (previousPosition != null) {
+      _trackBoundaryPageSwipe(
+        event.localPosition - previousPosition,
+      );
+    }
+  }
+
   void _endPointer(PointerEvent event) {
+    final shouldFinishBoundarySwipe = _pointerPositions.length == 1;
     _pointerPositions.remove(event.pointer);
     if (_pointerPositions.length >= 2) {
       _beginPinch();
@@ -170,6 +208,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
       _clearPinchStart();
     }
     _refreshInteractionState();
+    if (shouldFinishBoundarySwipe) _finishBoundaryPageSwipe();
   }
 
   void _clearPinchStart() {
@@ -207,18 +246,189 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
 
   Matrix4 _matrixForScaleAt(Offset focalPoint, double scale) {
     final sceneFocalPoint = _controller.toScene(focalPoint);
-    final translationX = (focalPoint.dx - sceneFocalPoint.dx * scale)
-        .clamp(_viewportSize.width * (1 - scale), 0.0)
-        .toDouble();
-    final translationY = (focalPoint.dy - sceneFocalPoint.dy * scale)
-        .clamp(_viewportSize.height * (1 - scale), 0.0)
-        .toDouble();
+    final translation = _constrainTranslation(
+      viewportSize: _viewportSize,
+      scale: scale,
+      translation: Offset(
+        focalPoint.dx - sceneFocalPoint.dx * scale,
+        focalPoint.dy - sceneFocalPoint.dy * scale,
+      ),
+    );
     final matrix = Matrix4.identity();
     matrix[0] = scale;
     matrix[5] = scale;
-    matrix[12] = translationX;
-    matrix[13] = translationY;
+    matrix[12] = translation.dx;
+    matrix[13] = translation.dy;
     return matrix;
+  }
+
+  Rect _contentRect(Size viewportSize) {
+    final aspectRatio = widget.contentAspectRatio;
+    if (aspectRatio == null ||
+        !aspectRatio.isFinite ||
+        aspectRatio <= 0 ||
+        viewportSize.isEmpty) {
+      return Offset.zero & viewportSize;
+    }
+
+    final viewportAspectRatio = viewportSize.width / viewportSize.height;
+    if (aspectRatio > viewportAspectRatio) {
+      final height = viewportSize.width / aspectRatio;
+      return Rect.fromLTWH(
+        0,
+        (viewportSize.height - height) / 2,
+        viewportSize.width,
+        height,
+      );
+    }
+
+    final width = viewportSize.height * aspectRatio;
+    return Rect.fromLTWH(
+      (viewportSize.width - width) / 2,
+      0,
+      width,
+      viewportSize.height,
+    );
+  }
+
+  ({double min, double max}) _translationBounds({
+    required double viewportExtent,
+    required double contentStart,
+    required double contentExtent,
+    required double scale,
+  }) {
+    final scaledExtent = contentExtent * scale;
+    if (scaledExtent <= viewportExtent) {
+      final centeredStart = (viewportExtent - scaledExtent) / 2;
+      final translation = centeredStart - contentStart * scale;
+      return (min: translation, max: translation);
+    }
+
+    return (
+      min: viewportExtent - (contentStart + contentExtent) * scale,
+      max: -contentStart * scale,
+    );
+  }
+
+  Offset _constrainTranslation({
+    required Size viewportSize,
+    required double scale,
+    required Offset translation,
+  }) {
+    final contentRect = _contentRect(viewportSize);
+    final horizontalBounds = _translationBounds(
+      viewportExtent: viewportSize.width,
+      contentStart: contentRect.left,
+      contentExtent: contentRect.width,
+      scale: scale,
+    );
+    final verticalBounds = _translationBounds(
+      viewportExtent: viewportSize.height,
+      contentStart: contentRect.top,
+      contentExtent: contentRect.height,
+      scale: scale,
+    );
+    return Offset(
+      translation.dx
+          .clamp(horizontalBounds.min, horizontalBounds.max)
+          .toDouble(),
+      translation.dy.clamp(verticalBounds.min, verticalBounds.max).toDouble(),
+    );
+  }
+
+  void _constrainCurrentTransform() {
+    if (_viewportSize.isEmpty) return;
+    final matrix = _controller.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final translation = _constrainTranslation(
+      viewportSize: _viewportSize,
+      scale: scale,
+      translation: Offset(matrix.entry(0, 3), matrix.entry(1, 3)),
+    );
+    if ((translation.dx - matrix.entry(0, 3)).abs() <= _zoomTolerance &&
+        (translation.dy - matrix.entry(1, 3)).abs() <= _zoomTolerance) {
+      return;
+    }
+
+    final constrained = Matrix4.copy(matrix);
+    constrained[12] = translation.dx;
+    constrained[13] = translation.dy;
+    _controller.value = constrained;
+  }
+
+  void _trackBoundaryPageSwipe(Offset delta) {
+    final pageAxis = widget.pageAxis;
+    if (!_isZoomed || pageAxis == null) {
+      _clearBoundarySwipe();
+      return;
+    }
+
+    final primaryDelta = pageAxis == Axis.horizontal ? delta.dx : delta.dy;
+    final crossDelta = pageAxis == Axis.horizontal ? delta.dy : delta.dx;
+    if (primaryDelta.abs() <= crossDelta.abs() || primaryDelta == 0) return;
+
+    final matrix = _controller.value;
+    final scale = matrix.getMaxScaleOnAxis();
+    final contentRect = _contentRect(_viewportSize);
+    final bounds = pageAxis == Axis.horizontal
+        ? _translationBounds(
+            viewportExtent: _viewportSize.width,
+            contentStart: contentRect.left,
+            contentExtent: contentRect.width,
+            scale: scale,
+          )
+        : _translationBounds(
+            viewportExtent: _viewportSize.height,
+            contentStart: contentRect.top,
+            contentExtent: contentRect.height,
+            scale: scale,
+          );
+    final currentTranslation =
+        pageAxis == Axis.horizontal ? matrix.entry(0, 3) : matrix.entry(1, 3);
+    final proposedTranslation = currentTranslation + primaryDelta;
+    final isAtBoundary = primaryDelta < 0
+        ? proposedTranslation <= bounds.min + _edgeTolerance
+        : proposedTranslation >= bounds.max - _edgeTolerance;
+    if (!isAtBoundary) {
+      _clearBoundarySwipe();
+      return;
+    }
+
+    final isNext =
+        widget.reversePageDirection ? primaryDelta > 0 : primaryDelta < 0;
+    final direction =
+        isNext ? _BoundaryPageDirection.next : _BoundaryPageDirection.previous;
+    if (_boundaryPageDirection != direction) {
+      _boundaryPageDirection = direction;
+      _boundarySwipeDistance = 0;
+    }
+    _boundarySwipeDistance += primaryDelta.abs();
+  }
+
+  void _finishBoundaryPageSwipe() {
+    final direction = _boundaryPageDirection;
+    final threshold = ((_viewportSize.shortestSide * .12)
+            .clamp(_minimumPageSwipeDistance, 96))
+        .toDouble();
+    final shouldNavigate = direction != null &&
+        _boundarySwipeDistance >= threshold &&
+        (direction == _BoundaryPageDirection.next
+            ? widget.onNextPage != null
+            : widget.onPreviousPage != null);
+    _clearBoundarySwipe();
+    if (!shouldNavigate) return;
+
+    _resetInteraction();
+    if (direction == _BoundaryPageDirection.next) {
+      widget.onNextPage?.call();
+    } else {
+      widget.onPreviousPage?.call();
+    }
+  }
+
+  void _clearBoundarySwipe() {
+    _boundaryPageDirection = null;
+    _boundarySwipeDistance = 0;
   }
 
   void _updateDoubleTapAnimation() {
@@ -265,10 +475,16 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
               _doubleTapAnimationController.stop();
             }
             _pointerPositions[event.pointer] = event.localPosition;
+            if (_pointerPositions.length == 1) {
+              _boundaryPageDirection = null;
+              _boundarySwipeDistance = 0;
+            } else {
+              _clearBoundarySwipe();
+            }
             if (_pointerPositions.length == 2) _beginPinch();
             _refreshInteractionState();
           },
-          onPointerMove: (event) => _updatePinch(event, constraints.biggest),
+          onPointerMove: (event) => _updatePointer(event, constraints.biggest),
           onPointerUp: _endPointer,
           onPointerCancel: _endPointer,
           child: InteractiveViewer(
@@ -277,7 +493,11 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
             maxScale: _maxScale,
             scaleEnabled: false,
             panEnabled: _isZoomed && !_hasMultiplePointers,
-            onInteractionUpdate: (_) => _refreshInteractionState(),
+            onInteractionUpdate: (_) {
+              _constrainCurrentTransform();
+              _refreshInteractionState();
+            },
+            onInteractionEnd: (_) => _constrainCurrentTransform(),
             child: widget.child,
           ),
         );
@@ -285,3 +505,5 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     );
   }
 }
+
+enum _BoundaryPageDirection { previous, next }

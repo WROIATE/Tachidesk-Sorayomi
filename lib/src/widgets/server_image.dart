@@ -70,6 +70,7 @@ class ServerImage extends HookConsumerWidget {
     this.placeholderWrapper,
     this.placeholderAspectRatio,
     this.onAspectRatioResolved,
+    this.onFileResolved,
     this.showReloadButton = false,
     this.retryAfterFailure,
     this.preferFlutterCodec = false,
@@ -86,6 +87,7 @@ class ServerImage extends HookConsumerWidget {
   final Widget Function(Widget child)? placeholderWrapper;
   final double? placeholderAspectRatio;
   final ValueChanged<double>? onAspectRatioResolved;
+  final ValueChanged<String>? onFileResolved;
   final bool showReloadButton;
   final Future<void>? retryAfterFailure;
   final bool preferFlutterCodec;
@@ -177,8 +179,10 @@ class ServerImage extends HookConsumerWidget {
           resolvedAspectRatio > 0) {
         onAspectRatioResolved?.call(resolvedAspectRatio);
       }
+      final filePath = loadedImage?.path;
+      if (filePath != null) onFileResolved?.call(filePath);
       return null;
-    }, [baseApi, resolvedAspectRatio]);
+    }, [baseApi, loadedImage?.path, resolvedAspectRatio]);
 
     final ImageRenderMethodForWeb renderMethod;
     if (authorization != null) {

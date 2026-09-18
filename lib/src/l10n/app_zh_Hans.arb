@@ -893,5 +893,8 @@
   "allSources": "全部图源",
   "pinSource": "置顶图源",
   "unpinSource": "取消置顶",
-  "noPinnedSources": "没有置顶图源"
+  "noPinnedSources": "没有置顶图源",
+  "copyImage": "复制图片",
+  "share": "分享",
+  "imageSaved": "图片已保存"
 }
