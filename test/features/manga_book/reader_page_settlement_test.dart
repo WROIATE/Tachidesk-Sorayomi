@@ -99,6 +99,16 @@ void main() {
     expect(_serverImage(tester, '/page-2').isAnimationActive, isFalse);
 
     await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final controller = tester.widget<PageView>(pageView).controller!;
+    expect(controller.page, inExclusiveRange(0.5, 1));
+    final hold = controller.position.hold(() {});
+    await tester.pump();
+    expect(_readerIndex(tester), 0,
+        reason: 'catching an animation is not a settled page change');
+    expect(changedPages, isEmpty);
+    hold.cancel();
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }

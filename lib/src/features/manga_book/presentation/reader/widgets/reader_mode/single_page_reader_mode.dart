@@ -27,6 +27,7 @@ import '../../../../domain/chapter/chapter_model.dart';
 import '../../../../domain/chapter_page/chapter_page_model.dart';
 import '../../../../domain/manga/manga_model.dart';
 import '../reader_interactive_viewer.dart';
+import '../reader_page_gesture_handler.dart';
 import '../reader_wrapper.dart';
 
 const Duration _autoPageTurnFadeDuration = Duration(milliseconds: 250);
@@ -252,8 +253,14 @@ class SinglePageReaderMode extends HookConsumerWidget {
       child: NotificationListener<ScrollEndNotification>(
         onNotification: (notification) {
           if (notification.depth == 0) {
-            final settledPage = scrollController.page?.round();
-            if (settledPage != null && settledPage != currentIndex.value) {
+            final page = scrollController.page;
+            // Catching an animation with hold() also emits ScrollEnd. Do not
+            // save a page or rebuild the reader while between two pages.
+            if (page == null || (page - page.round()).abs() > 0.001) {
+              return false;
+            }
+            final settledPage = page.round();
+            if (settledPage != currentIndex.value) {
               currentIndex.value = settledPage;
               onPageChanged?.call(settledPage);
               if (settledPage >= chapterPages.pages.length - 1) {
@@ -274,70 +281,74 @@ class SinglePageReaderMode extends HookConsumerWidget {
                 opacity: autoPageTurnOpacity.value,
                 duration: _autoPageTurnFadeDuration,
                 curve: Curves.easeInOut,
-                child: PageView.builder(
-                  scrollDirection: scrollDirection,
-                  reverse: reverse,
+                child: ReaderPageGestureHandler(
                   controller: scrollController,
-                  allowImplicitScrolling: true,
-                  physics: isZoomInteractionLocked.value
-                      ? const NeverScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(
+                  scrollDirection: scrollDirection,
+                  child: PageView.builder(
+                    scrollDirection: scrollDirection,
+                    reverse: reverse,
+                    controller: scrollController,
+                    allowImplicitScrolling: true,
+                    physics: isZoomInteractionLocked.value
+                        ? const NeverScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                          )
+                        : const BouncingScrollPhysics(
                             parent: AlwaysScrollableScrollPhysics(),
                           ),
-                        )
-                      : const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
-                        ),
-                  itemBuilder: (context, index) {
-                    final zoomController = zoomControllers.putIfAbsent(
-                      index,
-                      ReaderInteractiveViewerController.new,
-                    );
-                    return ReaderInteractiveViewer(
-                      key: ValueKey('reader-page-zoom-${chapter.id}-$index'),
-                      enabled: isPinchToZoomEnabled,
-                      resetToken: chapter.id,
-                      controller: zoomController,
-                      initialTransform: pageTransforms[index],
-                      contentAspectRatio: index == currentIndex.value
-                          ? currentPageAspectRatio.value
-                          : pageAspectRatios.value[index],
-                      pageController: scrollController,
-                      onTransformChanged: (transform) {
-                        if (_isZoomedTransform(transform)) {
-                          pageTransforms[index] = Matrix4.copy(transform);
-                        } else {
-                          pageTransforms.remove(index);
-                        }
-                      },
-                      onInteractionLockChanged: (locked) {
-                        if (currentIndex.value == index) {
-                          isZoomInteractionLocked.value = locked;
-                        }
-                      },
-                      child: _buildPage(
-                        context,
+                    itemBuilder: (context, index) {
+                      final zoomController = zoomControllers.putIfAbsent(
                         index,
-                        isAnimationActive: index == currentIndex.value,
-                        placeholderAspectRatio: pageAspectRatios.value[index],
-                        onAspectRatioResolved: (aspectRatio) {
-                          pageAspectRatios.value[index] = aspectRatio;
-                          if (currentIndex.value == index) {
-                            currentPageAspectRatio.value = aspectRatio;
+                        ReaderInteractiveViewerController.new,
+                      );
+                      return ReaderInteractiveViewer(
+                        key: ValueKey('reader-page-zoom-${chapter.id}-$index'),
+                        enabled: isPinchToZoomEnabled,
+                        resetToken: chapter.id,
+                        controller: zoomController,
+                        initialTransform: pageTransforms[index],
+                        contentAspectRatio: index == currentIndex.value
+                            ? currentPageAspectRatio.value
+                            : pageAspectRatios.value[index],
+                        pageController: scrollController,
+                        onTransformChanged: (transform) {
+                          if (_isZoomedTransform(transform)) {
+                            pageTransforms[index] = Matrix4.copy(transform);
+                          } else {
+                            pageTransforms.remove(index);
                           }
                         },
-                        onFileResolved: (filePath) {
-                          pageFilePaths.value[index] = filePath;
+                        onInteractionLockChanged: (locked) {
                           if (currentIndex.value == index) {
-                            currentPageFilePath.value = filePath;
+                            isZoomInteractionLocked.value = locked;
                           }
                         },
-                      ),
-                    );
-                  },
-                  itemCount: chapterPages.pages.isEmpty
-                      ? 1
-                      : chapterPages.pages.length,
+                        child: _buildPage(
+                          context,
+                          index,
+                          isAnimationActive: index == currentIndex.value,
+                          placeholderAspectRatio: pageAspectRatios.value[index],
+                          onAspectRatioResolved: (aspectRatio) {
+                            pageAspectRatios.value[index] = aspectRatio;
+                            if (currentIndex.value == index) {
+                              currentPageAspectRatio.value = aspectRatio;
+                            }
+                          },
+                          onFileResolved: (filePath) {
+                            pageFilePaths.value[index] = filePath;
+                            if (currentIndex.value == index) {
+                              currentPageFilePath.value = filePath;
+                            }
+                          },
+                        ),
+                      );
+                    },
+                    itemCount: chapterPages.pages.isEmpty
+                        ? 1
+                        : chapterPages.pages.length,
+                  ),
                 ),
               ),
               if (autoPageTurnCrossFadeTarget.value case final targetIndex?)

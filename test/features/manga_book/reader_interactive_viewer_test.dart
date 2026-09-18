@@ -5,6 +5,7 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/g
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/directional_swipe_gesture_handler.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_interactive_viewer.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_navigation_layout/layouts/right_and_left_layout.dart';
+import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_page_gesture_handler.dart';
 
 void main() {
   testWidgets('double tap toggles focal zoom without triggering a page tap', (
@@ -416,6 +417,39 @@ void main() {
     AxisDirection.left,
     AxisDirection.down
   ]) {
+    testWidgets('a second swipe catches a settling zoomed page: $direction',
+        (tester) async {
+      final pager = PageController();
+      addTearDown(pager.dispose);
+      await _pumpZoomedPager(tester, pager, direction: direction);
+      final horizontal = direction != AxisDirection.down;
+      final sign = direction == AxisDirection.left ? 1.0 : -1.0;
+      Offset movement(double distance) =>
+          horizontal ? Offset(distance * sign, 0) : Offset(0, distance * sign);
+      await tester.fling(find.byType(PageView), movement(200), 1800);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(pager.position.isScrollingNotifier.value, isTrue);
+      expect(pager.page, greaterThan(0.5));
+      final before = pager.position.pixels;
+      final gesture = await tester.startGesture(const Offset(400, 300));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(pager.position.pixels, closeTo(before, 0.01),
+          reason: 'new touch must stop the settling animation immediately');
+      await gesture.moveBy(movement(30));
+      await tester.pump(const Duration(milliseconds: 16));
+      final caught = pager.position.pixels;
+      await gesture.moveBy(movement(80));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(pager.position.pixels - caught, closeTo(80, 0.01),
+          reason: 'second swipe must drag without waiting for animation end');
+      await gesture.moveBy(movement(pager.position.viewportDimension * .8));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(pager.page, 2);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('zoomed edge drag follows the finger and settles: $direction',
         (tester) async {
       final pager = PageController();
@@ -466,6 +500,67 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(pager.page, 0);
+  });
+
+  testWidgets('tapping or cancelling a caught animation does not freeze paging',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    for (final cancel in [false, true]) {
+      pager.jumpToPage(0);
+      await tester.pumpAndSettle();
+      await tester.fling(find.byType(PageView), const Offset(-200, 0), 1800);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      final gesture = await tester.startGesture(const Offset(400, 300));
+      if (cancel) {
+        await gesture.cancel();
+      } else {
+        await gesture.up();
+      }
+      await tester.pumpAndSettle();
+      expect(pager.page, 1);
+      expect(pager.position.isScrollingNotifier.value, isFalse);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('a caught animation cancels paging when a second finger touches',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    await tester.fling(find.byType(PageView), const Offset(-200, 0), 1800);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final first = await tester.startGesture(const Offset(400, 300), pointer: 1);
+    await first.moveBy(const Offset(-30, 0));
+    await first.moveBy(const Offset(-40, 0));
+    final second =
+        await tester.startGesture(const Offset(600, 300), pointer: 2);
+    await second.up();
+    await tester.pumpAndSettle();
+    final settled = pager.page;
+    await first.moveBy(const Offset(-1000, 0));
+    await first.up();
+    await tester.pumpAndSettle();
+    expect(pager.page, settled,
+        reason: 'lifting one finger must not resume the cancelled page drag');
+    pager.jumpToPage(0);
+    await tester.pumpAndSettle();
+    await tester.fling(find.byType(PageView), const Offset(-200, 0), 1800);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final next = await tester.startGesture(const Offset(400, 300));
+    await next.moveBy(const Offset(-30, 0));
+    final before = pager.position.pixels;
+    await next.moveBy(const Offset(-80, 0));
+    expect(pager.position.pixels - before, closeTo(80, .01),
+        reason: 'a new gesture must work after cancelling a multi-touch drag');
+    await next.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('cancelled edge drag settles without starting another page turn',
@@ -586,24 +681,28 @@ Future<void> _pumpZoomedPager(
   transform[12] = direction == AxisDirection.left ? 0 : -800;
   transform[13] = horizontal ? -300 : -600;
   await tester.pumpWidget(MaterialApp(
-      home: PageView.builder(
+      home: ReaderPageGestureHandler(
     controller: pager,
     scrollDirection: horizontal ? Axis.horizontal : Axis.vertical,
-    reverse: direction == AxisDirection.left,
-    allowImplicitScrolling: true,
-    physics: const NeverScrollableScrollPhysics(
-      parent: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-    ),
-    itemCount: 4,
-    itemBuilder: (context, index) => ReaderInteractiveViewer(
-      key: ValueKey('zoomed-page-$index'),
-      enabled: true,
-      resetToken: index,
-      initialTransform: index == 0 ? transform : null,
-      contentAspectRatio: horizontal ? 2 : null,
-      pageController: pager,
-      onInteractionLockChanged: (_) {},
-      child: ColoredBox(color: index.isEven ? Colors.red : Colors.blue),
+    child: PageView.builder(
+      controller: pager,
+      scrollDirection: horizontal ? Axis.horizontal : Axis.vertical,
+      reverse: direction == AxisDirection.left,
+      allowImplicitScrolling: true,
+      physics: const NeverScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      ),
+      itemCount: 4,
+      itemBuilder: (context, index) => ReaderInteractiveViewer(
+        key: ValueKey('zoomed-page-$index'),
+        enabled: true,
+        resetToken: index,
+        initialTransform: index == 0 ? transform : null,
+        contentAspectRatio: horizontal ? 2 : null,
+        pageController: pager,
+        onInteractionLockChanged: (_) {},
+        child: ColoredBox(color: index.isEven ? Colors.red : Colors.blue),
+      ),
     ),
   )));
   await tester.pumpAndSettle();
