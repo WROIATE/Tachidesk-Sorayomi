@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../constants/app_constants.dart';
@@ -30,10 +31,7 @@ class ReaderInteractiveViewer extends StatefulWidget {
     required this.child,
     this.controller,
     this.contentAspectRatio,
-    this.pageAxis,
-    this.reversePageDirection = false,
-    this.onNextPage,
-    this.onPreviousPage,
+    this.pageController,
     this.initialTransform,
     this.onTransformChanged,
   });
@@ -44,10 +42,7 @@ class ReaderInteractiveViewer extends StatefulWidget {
   final Widget child;
   final ReaderInteractiveViewerController? controller;
   final double? contentAspectRatio;
-  final Axis? pageAxis;
-  final bool reversePageDirection;
-  final VoidCallback? onNextPage;
-  final VoidCallback? onPreviousPage;
+  final PageController? pageController;
   final Matrix4? initialTransform;
   final ValueChanged<Matrix4>? onTransformChanged;
 
@@ -63,7 +58,6 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   static const double _maxScale = 5;
   static const double _zoomTolerance = 0.001;
   static const double _edgeTolerance = 1;
-  static const double _minimumPageSwipeDistance = 56;
 
   late final TransformationController _controller;
   final Map<int, Offset> _pointerPositions = <int, Offset>{};
@@ -78,8 +72,12 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   bool _isZoomed = false;
   bool _isInteractionLocked = false;
   bool _isConstrainingTransform = false;
-  _BoundaryPageDirection? _boundaryPageDirection;
-  double _boundarySwipeDistance = 0;
+  Drag? _pageDrag;
+  VelocityTracker? _pageVelocity;
+  Matrix4? _pageDragTransform;
+  double _pageDragOrigin = 0;
+  bool _panAccepted = false;
+  bool _hadMultiplePointers = false;
 
   @override
   void initState() {
@@ -118,6 +116,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
 
   @override
   void dispose() {
+    _cancelPageDrag();
     widget.controller?._detach(this);
     _doubleTapAnimationController.dispose();
     _controller.removeListener(_handleControllerChanged);
@@ -126,6 +125,8 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   }
 
   void _resetInteraction() {
+    _cancelPageDrag();
+    _pageDragTransform = null;
     final wasInteractionLocked = _isInteractionLocked;
     _doubleTapAnimationController.stop();
     _isConstrainingTransform = true;
@@ -137,7 +138,6 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     _hasMultiplePointers = false;
     _isZoomed = false;
     _isInteractionLocked = false;
-    _clearBoundarySwipe();
 
     if (wasInteractionLocked) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -200,24 +200,18 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   }
 
   void _updatePointer(PointerMoveEvent event, Size viewportSize) {
-    final previousPosition = _pointerPositions[event.pointer];
     _pointerPositions[event.pointer] = event.localPosition;
 
     if (_pointerPositions.length > 1) {
-      _clearBoundarySwipe();
       _updatePinch(viewportSize);
       return;
     }
 
-    if (previousPosition != null) {
-      _trackBoundaryPageSwipe(
-        event.localPosition - previousPosition,
-      );
-    }
+    _pageVelocity?.addPosition(event.timeStamp, event.position);
+    _updatePageDrag(event);
   }
 
   void _endPointer(PointerEvent event) {
-    final shouldFinishBoundarySwipe = _pointerPositions.length == 1;
     _pointerPositions.remove(event.pointer);
     if (_pointerPositions.length >= 2) {
       _beginPinch();
@@ -225,7 +219,11 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
       _clearPinchStart();
     }
     _refreshInteractionState();
-    if (shouldFinishBoundarySwipe) _finishBoundaryPageSwipe();
+    if (_pointerPositions.isEmpty) {
+      _pageVelocity?.addPosition(event.timeStamp, event.position);
+      _finishPageDrag(cancelled: event is PointerCancelEvent);
+      _panAccepted = false;
+    }
   }
 
   void _clearPinchStart() {
@@ -236,6 +234,8 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
 
   void _toggleDoubleTapZoom(Offset globalPosition) {
     if (!mounted || !widget.enabled || _viewportSize.isEmpty) return;
+    _cancelPageDrag();
+    _pageDragTransform = null;
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
@@ -377,84 +377,121 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     if (_isConstrainingTransform) return;
 
     _isConstrainingTransform = true;
+    // The image must stay fixed while its whole page is dragged, including
+    // any image-pan momentum emitted after the pointer is released.
+    if (_pageDragTransform != null) {
+      _controller.value = Matrix4.copy(_pageDragTransform!);
+    }
     _constrainCurrentTransform();
     _isConstrainingTransform = false;
     _refreshInteractionState();
     widget.onTransformChanged?.call(Matrix4.copy(_controller.value));
   }
 
-  void _trackBoundaryPageSwipe(Offset delta) {
-    final pageAxis = widget.pageAxis;
-    if (!_isZoomed || pageAxis == null) {
-      _clearBoundarySwipe();
+  void _updatePageDrag(PointerMoveEvent event) {
+    final pager = widget.pageController;
+    if (!_isZoomed ||
+        _hadMultiplePointers ||
+        pager == null ||
+        !pager.hasClients ||
+        (!_panAccepted && _pageDrag == null)) {
       return;
     }
 
+    final position = pager.position;
+    final pageAxis = axisDirectionToAxis(position.axisDirection);
+    // Global deltas stay stable while the page itself moves underneath us.
+    final delta = event.delta;
     final primaryDelta = pageAxis == Axis.horizontal ? delta.dx : delta.dy;
     final crossDelta = pageAxis == Axis.horizontal ? delta.dy : delta.dx;
-    if (primaryDelta.abs() <= crossDelta.abs() || primaryDelta == 0) return;
+    if (_pageDrag == null) {
+      if (primaryDelta.abs() <= crossDelta.abs() || primaryDelta == 0) return;
+      final matrix = _controller.value;
+      final scale = matrix.getMaxScaleOnAxis();
+      final contentRect = _contentRect(_viewportSize);
+      final bounds = pageAxis == Axis.horizontal
+          ? _translationBounds(
+              viewportExtent: _viewportSize.width,
+              contentStart: contentRect.left,
+              contentExtent: contentRect.width,
+              scale: scale,
+            )
+          : _translationBounds(
+              viewportExtent: _viewportSize.height,
+              contentStart: contentRect.top,
+              contentExtent: contentRect.height,
+              scale: scale,
+            );
+      final translation =
+          pageAxis == Axis.horizontal ? matrix.entry(0, 3) : matrix.entry(1, 3);
+      final atBoundary = primaryDelta < 0
+          ? translation <= bounds.min + _edgeTolerance
+          : translation >= bounds.max - _edgeTolerance;
+      if (!atBoundary) return;
 
-    final matrix = _controller.value;
-    final scale = matrix.getMaxScaleOnAxis();
-    final contentRect = _contentRect(_viewportSize);
-    final bounds = pageAxis == Axis.horizontal
-        ? _translationBounds(
-            viewportExtent: _viewportSize.width,
-            contentStart: contentRect.left,
-            contentExtent: contentRect.width,
-            scale: scale,
-          )
-        : _translationBounds(
-            viewportExtent: _viewportSize.height,
-            contentStart: contentRect.top,
-            contentExtent: contentRect.height,
-            scale: scale,
-          );
-    final currentTranslation =
-        pageAxis == Axis.horizontal ? matrix.entry(0, 3) : matrix.entry(1, 3);
-    final proposedTranslation = currentTranslation + primaryDelta;
-    final isAtBoundary = primaryDelta < 0
-        ? proposedTranslation <= bounds.min + _edgeTolerance
-        : proposedTranslation >= bounds.max - _edgeTolerance;
-    if (!isAtBoundary) {
-      _clearBoundarySwipe();
+      _pageDragTransform = Matrix4.copy(matrix);
+      _pageDragOrigin = pager.page!.round() * position.viewportDimension;
+      _pageDrag = position.drag(
+        DragStartDetails(
+          sourceTimeStamp: event.timeStamp,
+          globalPosition: event.position,
+        ),
+        () => _pageDrag = null,
+      );
+    }
+
+    final sign = axisDirectionIsReversed(position.axisDirection) ? 1.0 : -1.0;
+    final extent = position.viewportDimension;
+    final target = (position.pixels + primaryDelta * sign).clamp(
+      (_pageDragOrigin - extent)
+          .clamp(position.minScrollExtent, position.maxScrollExtent),
+      (_pageDragOrigin + extent)
+          .clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
+    final consumedDelta = (target - position.pixels) / sign;
+    _pageDrag?.update(DragUpdateDetails(
+      sourceTimeStamp: event.timeStamp,
+      globalPosition: event.position,
+      delta: pageAxis == Axis.horizontal
+          ? Offset(consumedDelta, 0)
+          : Offset(0, consumedDelta),
+      primaryDelta: consumedDelta,
+    ));
+  }
+
+  void _finishPageDrag({required bool cancelled}) {
+    final drag = _pageDrag;
+    _pageDrag = null;
+    if (drag == null) return;
+    if (cancelled) {
+      drag.cancel();
       return;
     }
-
-    final isNext =
-        widget.reversePageDirection ? primaryDelta > 0 : primaryDelta < 0;
-    final direction =
-        isNext ? _BoundaryPageDirection.next : _BoundaryPageDirection.previous;
-    if (_boundaryPageDirection != direction) {
-      _boundaryPageDirection = direction;
-      _boundarySwipeDistance = 0;
+    final position = widget.pageController!.position;
+    final axis = axisDirectionToAxis(position.axisDirection);
+    final velocity =
+        _pageVelocity?.getVelocity().pixelsPerSecond ?? Offset.zero;
+    var speed = axis == Axis.horizontal ? velocity.dx : velocity.dy;
+    // One gesture cannot advance beyond its adjacent page.
+    if ((position.pixels - _pageDragOrigin).abs() >=
+            position.viewportDimension - _edgeTolerance ||
+        speed.abs() < position.physics.minFlingVelocity) {
+      speed = 0;
     }
-    _boundarySwipeDistance += primaryDelta.abs();
+    speed = speed.clamp(
+        -position.physics.maxFlingVelocity, position.physics.maxFlingVelocity);
+    drag.end(DragEndDetails(
+      primaryVelocity: speed,
+      velocity: Velocity(
+          pixelsPerSecond:
+              axis == Axis.horizontal ? Offset(speed, 0) : Offset(0, speed)),
+    ));
   }
 
-  void _finishBoundaryPageSwipe() {
-    final direction = _boundaryPageDirection;
-    final threshold = ((_viewportSize.shortestSide * .12)
-            .clamp(_minimumPageSwipeDistance, 96))
-        .toDouble();
-    final shouldNavigate = direction != null &&
-        _boundarySwipeDistance >= threshold &&
-        (direction == _BoundaryPageDirection.next
-            ? widget.onNextPage != null
-            : widget.onPreviousPage != null);
-    _clearBoundarySwipe();
-    if (!shouldNavigate) return;
-
-    if (direction == _BoundaryPageDirection.next) {
-      widget.onNextPage?.call();
-    } else {
-      widget.onPreviousPage?.call();
-    }
-  }
-
-  void _clearBoundarySwipe() {
-    _boundaryPageDirection = null;
-    _boundarySwipeDistance = 0;
+  void _cancelPageDrag() {
+    final drag = _pageDrag;
+    _pageDrag = null;
+    drag?.cancel();
   }
 
   void _updateDoubleTapAnimation() {
@@ -501,10 +538,15 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
             }
             _pointerPositions[event.pointer] = event.localPosition;
             if (_pointerPositions.length == 1) {
-              _boundaryPageDirection = null;
-              _boundarySwipeDistance = 0;
+              _pageDragTransform = null;
+              _panAccepted = false;
+              _hadMultiplePointers = false;
+              _pageVelocity = VelocityTracker.withKind(event.kind)
+                ..addPosition(event.timeStamp, event.position);
             } else {
-              _clearBoundarySwipe();
+              _hadMultiplePointers = true;
+              _cancelPageDrag();
+              _pageDragTransform = null;
             }
             if (_pointerPositions.length == 2) _beginPinch();
             _refreshInteractionState();
@@ -518,6 +560,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
             maxScale: _maxScale,
             scaleEnabled: false,
             panEnabled: _isZoomed && !_hasMultiplePointers,
+            onInteractionStart: (_) => _panAccepted = true,
             child: widget.child,
           ),
         );
@@ -525,5 +568,3 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     );
   }
 }
-
-enum _BoundaryPageDirection { previous, next }

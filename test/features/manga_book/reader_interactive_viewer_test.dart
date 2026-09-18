@@ -411,40 +411,123 @@ void main() {
     }
   });
 
-  testWidgets('an outward swipe changes pages after zoom reaches an edge', (
-    tester,
-  ) async {
-    final zoomController = ReaderInteractiveViewerController();
-    var nextCalls = 0;
+  for (final direction in [
+    AxisDirection.right,
+    AxisDirection.left,
+    AxisDirection.down
+  ]) {
+    testWidgets('zoomed edge drag follows the finger and settles: $direction',
+        (tester) async {
+      final pager = PageController();
+      addTearDown(pager.dispose);
+      await _pumpZoomedPager(tester, pager, direction: direction);
+      final horizontal = direction != AxisDirection.down;
+      final sign = direction == AxisDirection.left ? 1.0 : -1.0;
+      Offset movement(double distance) =>
+          horizontal ? Offset(distance * sign, 0) : Offset(0, distance * sign);
+      final gesture = await tester.startGesture(const Offset(400, 300));
+      await gesture.moveBy(movement(30));
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveBy(movement(80));
+      await tester.pump(const Duration(milliseconds: 16));
+      final before = pager.position.pixels;
+      expect(before, greaterThan(0), reason: 'must move before pointer up');
+      await gesture.moveBy(movement(80));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(pager.position.pixels - before, closeTo(80, 0.01),
+          reason: 'pager delta must not be multiplied by image zoom');
+      await gesture.moveBy(movement(280));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(pager.page, 1);
+      pager.jumpToPage(0);
+      await tester.pumpAndSettle();
+      final image = tester.widget<InteractiveViewer>(find.descendant(
+        of: find.byKey(const ValueKey('zoomed-page-0')),
+        matching: find.byType(InteractiveViewer),
+      ));
+      expect(image.transformationController!.value.getMaxScaleOnAxis(), 2);
+    });
+  }
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ReaderInteractiveViewer(
-          enabled: true,
-          resetToken: 0,
-          controller: zoomController,
-          contentAspectRatio: 2,
-          pageAxis: Axis.horizontal,
-          onNextPage: () => nextCalls++,
-          onInteractionLockChanged: (_) {},
-          child: const ColoredBox(color: Colors.red),
-        ),
-      ),
-    );
-
-    zoomController.toggleZoomAt(const Offset(790, 300));
+  testWidgets('zoomed edge drag can reverse and settle back on its page',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(const Offset(-240, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(pager.position.pixels, greaterThan(0));
+    await gesture.moveBy(const Offset(240, 0));
+    await tester.pump(const Duration(milliseconds: 150));
+    await gesture.up();
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byType(InteractiveViewer),
-      const Offset(-160, 0),
-    );
-    await tester.pumpAndSettle();
+    expect(pager.page, 0);
+  });
 
-    expect(nextCalls, 1);
-    final controller = tester
-        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
-        .transformationController!;
-    expect(controller.value.getMaxScaleOnAxis(), 2);
+  testWidgets('cancelled edge drag settles without starting another page turn',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(const Offset(-100, 0));
+    await tester.pump();
+    expect(pager.position.pixels, greaterThan(0));
+    await gesture.cancel();
+    await tester.pumpAndSettle();
+    expect(pager.page, 0);
+  });
+
+  testWidgets('short fast edge fling uses release velocity to turn a page',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    await tester.fling(find.byType(PageView), const Offset(-200, 0), 1800);
+    await tester.pumpAndSettle();
+    expect(pager.page, 1);
+  });
+
+  testWidgets('one oversized edge gesture cannot skip multiple pages',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(-30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(const Offset(-2400, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(pager.page, 1);
+  });
+
+  testWidgets('a second finger cancels edge paging for the rest of the gesture',
+      (tester) async {
+    final pager = PageController();
+    addTearDown(pager.dispose);
+    await _pumpZoomedPager(tester, pager);
+    final first = await tester.startGesture(const Offset(400, 300), pointer: 1);
+    await first.moveBy(const Offset(-30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await first.moveBy(const Offset(-80, 0));
+    await tester.pump();
+    expect(pager.position.pixels, greaterThan(0));
+    final second =
+        await tester.startGesture(const Offset(350, 320), pointer: 2);
+    await tester.pumpAndSettle();
+    await second.up();
+    await first.moveBy(const Offset(-250, 0));
+    await first.up();
+    await tester.pumpAndSettle();
+    expect(pager.page, 0);
   });
 
   testWidgets('a recreated page restores its saved zoom transform', (
@@ -490,6 +573,40 @@ void main() {
         .transformationController!;
     expect(restoredController.value.getMaxScaleOnAxis(), 2);
   });
+}
+
+Future<void> _pumpZoomedPager(
+  WidgetTester tester,
+  PageController pager, {
+  AxisDirection direction = AxisDirection.right,
+}) async {
+  final horizontal = direction != AxisDirection.down;
+  final transform = Matrix4.identity();
+  transform[0] = transform[5] = 2;
+  transform[12] = direction == AxisDirection.left ? 0 : -800;
+  transform[13] = horizontal ? -300 : -600;
+  await tester.pumpWidget(MaterialApp(
+      home: PageView.builder(
+    controller: pager,
+    scrollDirection: horizontal ? Axis.horizontal : Axis.vertical,
+    reverse: direction == AxisDirection.left,
+    allowImplicitScrolling: true,
+    physics: const NeverScrollableScrollPhysics(
+      parent: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+    ),
+    itemCount: 4,
+    itemBuilder: (context, index) => ReaderInteractiveViewer(
+      key: ValueKey('zoomed-page-$index'),
+      enabled: true,
+      resetToken: index,
+      initialTransform: index == 0 ? transform : null,
+      contentAspectRatio: horizontal ? 2 : null,
+      pageController: pager,
+      onInteractionLockChanged: (_) {},
+      child: ColoredBox(color: index.isEven ? Colors.red : Colors.blue),
+    ),
+  )));
+  await tester.pumpAndSettle();
 }
 
 final _chapterPages = Fragment$ChapterPagesDto(

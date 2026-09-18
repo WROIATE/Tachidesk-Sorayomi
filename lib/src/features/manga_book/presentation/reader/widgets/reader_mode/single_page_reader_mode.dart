@@ -280,7 +280,11 @@ class SinglePageReaderMode extends HookConsumerWidget {
                   controller: scrollController,
                   allowImplicitScrolling: true,
                   physics: isZoomInteractionLocked.value
-                      ? const NeverScrollableScrollPhysics()
+                      ? const NeverScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                        )
                       : const BouncingScrollPhysics(
                           parent: AlwaysScrollableScrollPhysics(),
                         ),
@@ -298,10 +302,7 @@ class SinglePageReaderMode extends HookConsumerWidget {
                       contentAspectRatio: index == currentIndex.value
                           ? currentPageAspectRatio.value
                           : pageAspectRatios.value[index],
-                      pageAxis: scrollDirection,
-                      reversePageDirection: reverse,
-                      onPreviousPage: previousPage,
-                      onNextPage: nextPage,
+                      pageController: scrollController,
                       onTransformChanged: (transform) {
                         if (_isZoomedTransform(transform)) {
                           pageTransforms[index] = Matrix4.copy(transform);
