@@ -36,6 +36,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
     required this.onNextPage,
     required this.onPreviousPage,
     required this.pageController,
+    this.interactionLocked = false,
   });
 
   final Widget child;
@@ -54,6 +55,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
   final VoidCallback onNextPage;
   final VoidCallback onPreviousPage;
   final PageController? pageController;
+  final bool interactionLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +113,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
       onPanEnd: (details) {
-        if (hadMultiplePointers()) return;
+        if (interactionLocked || hadMultiplePointers()) return;
         final swipeDirection = LastPageSwipeUtils.detectSwipeDirection(details);
 
         if (swipeDirection != null) {
@@ -138,7 +140,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
       onHorizontalDragEnd: (details) {
-        if (hadMultiplePointers()) return;
+        if (interactionLocked || hadMultiplePointers()) return;
         _handleSwipeGesture(
           context: context,
           details: details,
@@ -146,7 +148,7 @@ class DirectionalSwipeGestureHandler extends HookWidget {
         );
       },
       onVerticalDragEnd: (details) {
-        if (hadMultiplePointers()) return;
+        if (interactionLocked || hadMultiplePointers()) return;
         _handleSwipeGesture(
           context: context,
           details: details,

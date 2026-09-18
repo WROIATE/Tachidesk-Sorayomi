@@ -216,6 +216,7 @@ class ContinuousReaderMode extends HookConsumerWidget {
         isNext: true,
       ),
       onDoubleTap: zoomController.toggleZoomAt,
+      interactionLocked: isZoomInteractionLocked.value,
       child: ReaderInteractiveViewer(
         enabled: isPinchToZoomEnabled,
         resetToken: currentIndex.value,

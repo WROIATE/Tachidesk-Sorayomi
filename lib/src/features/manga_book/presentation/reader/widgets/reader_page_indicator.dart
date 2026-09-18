@@ -38,7 +38,7 @@ class ReaderPageIndicator extends StatelessWidget {
             style: baseStyle.copyWith(
               foreground: Paint()
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = 4
+                ..strokeWidth = 1.5
                 ..color = const Color(0xFF2D2D2D),
             ),
           ),

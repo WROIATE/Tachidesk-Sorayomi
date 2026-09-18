@@ -8,6 +8,7 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter/graphq
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/manga/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/manga_details/controller/manga_details_controller.dart';
+import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_interactive_viewer.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_mode/continuous_reader_mode.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_mode/single_page_reader_mode.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_wrapper.dart';
@@ -65,6 +66,20 @@ void main() {
     );
 
     final pageView = find.byType(PageView);
+    expect(
+      find.ancestor(
+        of: pageView,
+        matching: find.byType(ReaderInteractiveViewer),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: pageView,
+        matching: find.byType(ReaderInteractiveViewer),
+      ),
+      findsWidgets,
+    );
     final pageBounds = tester.getRect(pageView);
     final gesture = await tester.startGesture(
       Offset(pageBounds.right - 20, pageBounds.center.dy),

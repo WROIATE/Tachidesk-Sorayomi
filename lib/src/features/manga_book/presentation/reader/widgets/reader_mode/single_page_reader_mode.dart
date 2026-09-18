@@ -58,7 +58,14 @@ class SinglePageReaderMode extends HookConsumerWidget {
     final scrollController = usePageController(initialPage: initialPage);
     final currentIndex = useState(scrollController.initialPage);
     final isZoomInteractionLocked = useState(false);
-    final zoomController = useMemoized(ReaderInteractiveViewerController.new);
+    final zoomControllers = useMemoized(
+      () => <int, ReaderInteractiveViewerController>{},
+      [chapter.id],
+    );
+    final pageTransforms = useMemoized(
+      () => <int, Matrix4>{},
+      [chapter.id],
+    );
     final pageAspectRatios = useRef(<int, double>{});
     final pageFilePaths = useRef(<int, String>{});
     final currentPageAspectRatio = useState<double?>(null);
@@ -75,6 +82,8 @@ class SinglePageReaderMode extends HookConsumerWidget {
     useEffect(() {
       currentPageAspectRatio.value = pageAspectRatios.value[currentIndex.value];
       currentPageFilePath.value = pageFilePaths.value[currentIndex.value];
+      isZoomInteractionLocked.value =
+          _isZoomedTransform(pageTransforms[currentIndex.value]);
       return null;
     }, [chapter.id, currentIndex.value]);
 
@@ -214,7 +223,9 @@ class SinglePageReaderMode extends HookConsumerWidget {
       onPrevious: previousPage,
       onNext: nextPage,
       pageController: scrollController,
-      onDoubleTap: zoomController.toggleZoomAt,
+      interactionLocked: isZoomInteractionLocked.value,
+      onDoubleTap: (position) =>
+          zoomControllers[currentIndex.value]?.toggleZoomAt(position),
       currentPageFilePath: currentPageFilePath.value,
       readerAction: IconButton(
         key: const ValueKey('auto-page-turn-toggle'),
@@ -238,85 +249,105 @@ class SinglePageReaderMode extends HookConsumerWidget {
               : Icons.play_circle_outline_rounded,
         ),
       ),
-      child: ReaderInteractiveViewer(
-        enabled: isPinchToZoomEnabled,
-        resetToken: currentIndex.value,
-        controller: zoomController,
-        contentAspectRatio: currentPageAspectRatio.value,
-        pageAxis: scrollDirection,
-        reversePageDirection: reverse,
-        onPreviousPage: previousPage,
-        onNextPage: nextPage,
-        onInteractionLockChanged: (locked) =>
-            isZoomInteractionLocked.value = locked,
-        child: NotificationListener<ScrollEndNotification>(
-          onNotification: (notification) {
-            if (notification.depth == 0) {
-              final settledPage = scrollController.page?.round();
-              if (settledPage != null && settledPage != currentIndex.value) {
-                currentIndex.value = settledPage;
-                onPageChanged?.call(settledPage);
-                if (settledPage >= chapterPages.pages.length - 1) {
-                  autoPageTurnActive.value = false;
-                }
+      child: NotificationListener<ScrollEndNotification>(
+        onNotification: (notification) {
+          if (notification.depth == 0) {
+            final settledPage = scrollController.page?.round();
+            if (settledPage != null && settledPage != currentIndex.value) {
+              currentIndex.value = settledPage;
+              onPageChanged?.call(settledPage);
+              if (settledPage >= chapterPages.pages.length - 1) {
+                autoPageTurnActive.value = false;
               }
             }
-            return false;
-          },
-          child: IgnorePointer(
-            ignoring: autoPageTurnOpacity.value != 1 ||
-                autoPageTurnCrossFadeTarget.value != null,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
+          }
+          return false;
+        },
+        child: IgnorePointer(
+          ignoring: autoPageTurnOpacity.value != 1 ||
+              autoPageTurnCrossFadeTarget.value != null,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              AnimatedOpacity(
+                key: const ValueKey('auto-page-turn-fade'),
+                opacity: autoPageTurnOpacity.value,
+                duration: _autoPageTurnFadeDuration,
+                curve: Curves.easeInOut,
+                child: PageView.builder(
+                  scrollDirection: scrollDirection,
+                  reverse: reverse,
+                  controller: scrollController,
+                  allowImplicitScrolling: true,
+                  physics: isZoomInteractionLocked.value
+                      ? const NeverScrollableScrollPhysics()
+                      : const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                  itemBuilder: (context, index) {
+                    final zoomController = zoomControllers.putIfAbsent(
+                      index,
+                      ReaderInteractiveViewerController.new,
+                    );
+                    return ReaderInteractiveViewer(
+                      key: ValueKey('reader-page-zoom-${chapter.id}-$index'),
+                      enabled: isPinchToZoomEnabled,
+                      resetToken: chapter.id,
+                      controller: zoomController,
+                      initialTransform: pageTransforms[index],
+                      contentAspectRatio: index == currentIndex.value
+                          ? currentPageAspectRatio.value
+                          : pageAspectRatios.value[index],
+                      pageAxis: scrollDirection,
+                      reversePageDirection: reverse,
+                      onPreviousPage: previousPage,
+                      onNextPage: nextPage,
+                      onTransformChanged: (transform) {
+                        if (_isZoomedTransform(transform)) {
+                          pageTransforms[index] = Matrix4.copy(transform);
+                        } else {
+                          pageTransforms.remove(index);
+                        }
+                      },
+                      onInteractionLockChanged: (locked) {
+                        if (currentIndex.value == index) {
+                          isZoomInteractionLocked.value = locked;
+                        }
+                      },
+                      child: _buildPage(
+                        context,
+                        index,
+                        isAnimationActive: index == currentIndex.value,
+                        placeholderAspectRatio: pageAspectRatios.value[index],
+                        onAspectRatioResolved: (aspectRatio) {
+                          pageAspectRatios.value[index] = aspectRatio;
+                          if (currentIndex.value == index) {
+                            currentPageAspectRatio.value = aspectRatio;
+                          }
+                        },
+                        onFileResolved: (filePath) {
+                          pageFilePaths.value[index] = filePath;
+                          if (currentIndex.value == index) {
+                            currentPageFilePath.value = filePath;
+                          }
+                        },
+                      ),
+                    );
+                  },
+                  itemCount: chapterPages.pages.isEmpty
+                      ? 1
+                      : chapterPages.pages.length,
+                ),
+              ),
+              if (autoPageTurnCrossFadeTarget.value case final targetIndex?)
                 AnimatedOpacity(
-                  key: const ValueKey('auto-page-turn-fade'),
-                  opacity: autoPageTurnOpacity.value,
+                  key: const ValueKey('auto-page-turn-cross-fade'),
+                  opacity: autoPageTurnCrossFadeOpacity.value,
                   duration: _autoPageTurnFadeDuration,
                   curve: Curves.easeInOut,
-                  child: PageView.builder(
-                    scrollDirection: scrollDirection,
-                    reverse: reverse,
-                    controller: scrollController,
-                    allowImplicitScrolling: true,
-                    physics: isZoomInteractionLocked.value
-                        ? const NeverScrollableScrollPhysics()
-                        : const BouncingScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics(),
-                          ),
-                    itemBuilder: (context, index) => _buildPage(
-                      context,
-                      index,
-                      isAnimationActive: index == currentIndex.value,
-                      placeholderAspectRatio: pageAspectRatios.value[index],
-                      onAspectRatioResolved: (aspectRatio) {
-                        pageAspectRatios.value[index] = aspectRatio;
-                        if (currentIndex.value == index) {
-                          currentPageAspectRatio.value = aspectRatio;
-                        }
-                      },
-                      onFileResolved: (filePath) {
-                        pageFilePaths.value[index] = filePath;
-                        if (currentIndex.value == index) {
-                          currentPageFilePath.value = filePath;
-                        }
-                      },
-                    ),
-                    itemCount: chapterPages.pages.isEmpty
-                        ? 1
-                        : chapterPages.pages.length,
-                  ),
+                  child: _buildPage(context, targetIndex),
                 ),
-                if (autoPageTurnCrossFadeTarget.value case final targetIndex?)
-                  AnimatedOpacity(
-                    key: const ValueKey('auto-page-turn-cross-fade'),
-                    opacity: autoPageTurnCrossFadeOpacity.value,
-                    duration: _autoPageTurnFadeDuration,
-                    curve: Curves.easeInOut,
-                    child: _buildPage(context, targetIndex),
-                  ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -352,3 +383,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
     );
   }
 }
+
+bool _isZoomedTransform(Matrix4? transform) =>
+    transform != null && transform.getMaxScaleOnAxis() > 1.001;

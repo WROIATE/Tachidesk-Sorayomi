@@ -63,6 +63,7 @@ class ReaderWrapper extends HookConsumerWidget {
     this.onDoubleTap,
     this.readerAction,
     this.currentPageFilePath,
+    this.interactionLocked = false,
   });
   final Widget child;
   final MangaDto manga;
@@ -78,6 +79,7 @@ class ReaderWrapper extends HookConsumerWidget {
   final ValueChanged<Offset>? onDoubleTap;
   final Widget? readerAction;
   final String? currentPageFilePath;
+  final bool interactionLocked;
 
   /// Determine transition direction based on reading mode for proper animations
   /// Returns true for vertical transitions, false for horizontal transitions
@@ -598,6 +600,7 @@ class ReaderWrapper extends HookConsumerWidget {
                       showReaderLayoutAnimation: showReaderLayoutAnimation,
                       pageController: pageController,
                       onDoubleTap: onDoubleTap,
+                      interactionLocked: interactionLocked,
                       child: _buildEnhancedChildWithPageDetection(
                         child,
                         lastPageSwipeEnabled,
@@ -877,6 +880,7 @@ class ReaderView extends HookWidget {
     this.showReaderLayoutAnimation = false,
     this.pageController,
     this.onDoubleTap,
+    this.interactionLocked = false,
   });
 
   final VoidCallback toggleVisibility;
@@ -897,6 +901,7 @@ class ReaderView extends HookWidget {
   final Widget child;
   final PageController? pageController;
   final ValueChanged<Offset>? onDoubleTap;
+  final bool interactionLocked;
 
   /// Gesture handling extracted for better performance and maintainability.
   /// This widget focuses on:
@@ -935,13 +940,16 @@ class ReaderView extends HookWidget {
     content = Stack(
       children: [
         content,
-        ReaderNavigationLayoutWidget(
-          onNext: onNext,
-          onPrevious: onPrevious,
-          onDoubleTapDown: handleDoubleTapDown,
-          onDoubleTap: handleDoubleTap,
-          navigationLayout: mangaReaderNavigationLayout,
-          showReaderLayoutAnimation: showReaderLayoutAnimation,
+        IgnorePointer(
+          ignoring: interactionLocked,
+          child: ReaderNavigationLayoutWidget(
+            onNext: onNext,
+            onPrevious: onPrevious,
+            onDoubleTapDown: handleDoubleTapDown,
+            onDoubleTap: handleDoubleTap,
+            navigationLayout: mangaReaderNavigationLayout,
+            showReaderLayoutAnimation: showReaderLayoutAnimation,
+          ),
         ),
       ],
     );
@@ -962,6 +970,7 @@ class ReaderView extends HookWidget {
       pageController: controller,
       onDoubleTapDown: handleDoubleTapDown,
       onDoubleTap: handleDoubleTap,
+      interactionLocked: interactionLocked,
       child: content,
     );
   }

@@ -26,6 +26,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('1 / 1'), findsNWidgets(2));
+    final outlinedText = tester
+        .widgetList<Text>(find.text('1 / 1'))
+        .singleWhere((text) => text.style?.foreground != null);
+    expect(outlinedText.style!.foreground!.strokeWidth, 1.5);
   });
 
   testWidgets('long press opens page actions instead of a magnifier', (

@@ -204,6 +204,48 @@ void main() {
     expect(controller.value.getMaxScaleOnAxis(), greaterThan(1));
   });
 
+  testWidgets('locked image interaction suppresses outer page swipes', (
+    tester,
+  ) async {
+    var nextCalls = 0;
+    var previousCalls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DirectionalSwipeGestureHandler(
+          onTap: () {},
+          onLongPress: () {},
+          scrollDirection: Axis.horizontal,
+          readerSwipeChapterToggle: false,
+          lastPageSwipeEnabled: true,
+          resolvedReaderMode: ReaderMode.singleHorizontalLTR,
+          currentIndex: 0,
+          chapterPages: _chapterPages,
+          mangaId: 1,
+          prevNextChapterPair: null,
+          onNextPage: () => nextCalls++,
+          onPreviousPage: () => previousCalls++,
+          pageController: null,
+          interactionLocked: true,
+          child: const ColoredBox(
+            key: ValueKey('locked-reader-content'),
+            color: Colors.red,
+          ),
+        ),
+      ),
+    );
+
+    await tester.fling(
+      find.byKey(const ValueKey('locked-reader-content')),
+      const Offset(-300, 0),
+      3000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(nextCalls, 0);
+    expect(previousCalls, 0);
+  });
+
   testWidgets('disabled pinch zoom leaves the reader unchanged', (
     tester,
   ) async {
@@ -334,6 +376,41 @@ void main() {
     expect(controller.value.entry(1, 3), closeTo(-400, 0.01));
   });
 
+  testWidgets('a fast fling remains constrained throughout its momentum', (
+    tester,
+  ) async {
+    final zoomController = ReaderInteractiveViewerController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderInteractiveViewer(
+          enabled: true,
+          resetToken: 0,
+          controller: zoomController,
+          contentAspectRatio: 2,
+          onInteractionLockChanged: (_) {},
+          child: const ColoredBox(color: Colors.red),
+        ),
+      ),
+    );
+
+    zoomController.toggleZoomAt(const Offset(400, 300));
+    await tester.pumpAndSettle();
+    await tester.fling(
+      find.byType(InteractiveViewer),
+      const Offset(0, -300),
+      5000,
+    );
+
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final controller = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      expect(controller.value.entry(1, 3), inInclusiveRange(-400, -200));
+    }
+  });
+
   testWidgets('an outward swipe changes pages after zoom reaches an edge', (
     tester,
   ) async {
@@ -367,7 +444,51 @@ void main() {
     final controller = tester
         .widget<InteractiveViewer>(find.byType(InteractiveViewer))
         .transformationController!;
-    expect(controller.value.getMaxScaleOnAxis(), 1);
+    expect(controller.value.getMaxScaleOnAxis(), 2);
+  });
+
+  testWidgets('a recreated page restores its saved zoom transform', (
+    tester,
+  ) async {
+    final firstController = ReaderInteractiveViewerController();
+    Matrix4? savedTransform;
+    var generation = 0;
+    late StateSetter rebuild;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return ReaderInteractiveViewer(
+              key: ValueKey(generation),
+              enabled: true,
+              resetToken: 0,
+              controller: generation == 0 ? firstController : null,
+              initialTransform: savedTransform,
+              onTransformChanged: (transform) {
+                savedTransform = Matrix4.copy(transform);
+              },
+              onInteractionLockChanged: (_) {},
+              child: const ColoredBox(color: Colors.red),
+            );
+          },
+        ),
+      ),
+    );
+
+    firstController.toggleZoomAt(const Offset(200, 150));
+    await tester.pumpAndSettle();
+    expect(savedTransform!.getMaxScaleOnAxis(), 2);
+
+    rebuild(() => generation++);
+    await tester.pump();
+    await tester.pump();
+
+    final restoredController = tester
+        .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+        .transformationController!;
+    expect(restoredController.value.getMaxScaleOnAxis(), 2);
   });
 }
 

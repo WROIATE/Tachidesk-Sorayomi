@@ -34,6 +34,8 @@ class ReaderInteractiveViewer extends StatefulWidget {
     this.reversePageDirection = false,
     this.onNextPage,
     this.onPreviousPage,
+    this.initialTransform,
+    this.onTransformChanged,
   });
 
   final bool enabled;
@@ -46,6 +48,8 @@ class ReaderInteractiveViewer extends StatefulWidget {
   final bool reversePageDirection;
   final VoidCallback? onNextPage;
   final VoidCallback? onPreviousPage;
+  final Matrix4? initialTransform;
+  final ValueChanged<Matrix4>? onTransformChanged;
 
   @override
   State<ReaderInteractiveViewer> createState() =>
@@ -61,7 +65,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   static const double _edgeTolerance = 1;
   static const double _minimumPageSwipeDistance = 56;
 
-  final TransformationController _controller = TransformationController();
+  late final TransformationController _controller;
   final Map<int, Offset> _pointerPositions = <int, Offset>{};
 
   late final AnimationController _doubleTapAnimationController;
@@ -73,17 +77,26 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   bool _hasMultiplePointers = false;
   bool _isZoomed = false;
   bool _isInteractionLocked = false;
+  bool _isConstrainingTransform = false;
   _BoundaryPageDirection? _boundaryPageDirection;
   double _boundarySwipeDistance = 0;
 
   @override
   void initState() {
     super.initState();
+    _controller = TransformationController(
+      !widget.enabled || widget.initialTransform == null
+          ? Matrix4.identity()
+          : Matrix4.copy(widget.initialTransform!),
+    )..addListener(_handleControllerChanged);
     _doubleTapAnimationController = AnimationController(
       vsync: this,
       duration: kDuration,
     )..addListener(_updateDoubleTapAnimation);
     widget.controller?._attach(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handleControllerChanged();
+    });
   }
 
   @override
@@ -98,7 +111,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
       _resetInteraction();
     } else if (oldWidget.contentAspectRatio != widget.contentAspectRatio) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _constrainCurrentTransform();
+        if (mounted) _handleControllerChanged();
       });
     }
   }
@@ -107,6 +120,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   void dispose() {
     widget.controller?._detach(this);
     _doubleTapAnimationController.dispose();
+    _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -114,7 +128,10 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   void _resetInteraction() {
     final wasInteractionLocked = _isInteractionLocked;
     _doubleTapAnimationController.stop();
+    _isConstrainingTransform = true;
     _controller.value = Matrix4.identity();
+    _isConstrainingTransform = false;
+    widget.onTransformChanged?.call(Matrix4.identity());
     _pointerPositions.clear();
     _clearPinchStart();
     _hasMultiplePointers = false;
@@ -356,6 +373,16 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     _controller.value = constrained;
   }
 
+  void _handleControllerChanged() {
+    if (_isConstrainingTransform) return;
+
+    _isConstrainingTransform = true;
+    _constrainCurrentTransform();
+    _isConstrainingTransform = false;
+    _refreshInteractionState();
+    widget.onTransformChanged?.call(Matrix4.copy(_controller.value));
+  }
+
   void _trackBoundaryPageSwipe(Offset delta) {
     final pageAxis = widget.pageAxis;
     if (!_isZoomed || pageAxis == null) {
@@ -418,7 +445,6 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     _clearBoundarySwipe();
     if (!shouldNavigate) return;
 
-    _resetInteraction();
     if (direction == _BoundaryPageDirection.next) {
       widget.onNextPage?.call();
     } else {
@@ -435,7 +461,6 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     final animation = _doubleTapAnimation;
     if (animation == null) return;
     _controller.value = animation.value;
-    _refreshInteractionState();
   }
 
   void _refreshInteractionState() {
@@ -493,11 +518,6 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
             maxScale: _maxScale,
             scaleEnabled: false,
             panEnabled: _isZoomed && !_hasMultiplePointers,
-            onInteractionUpdate: (_) {
-              _constrainCurrentTransform();
-              _refreshInteractionState();
-            },
-            onInteractionEnd: (_) => _constrainCurrentTransform(),
             child: widget.child,
           ),
         );
