@@ -55,6 +55,8 @@ class DirectionalSwipeGestureHandler extends HookWidget {
   final VoidCallback onNextPage;
   final VoidCallback onPreviousPage;
   final PageController? pageController;
+  // Omit drag recognizers while the image owns the gesture. Returning early
+  // from onEnd is too late: the outer recognizer may already have won the arena.
   final bool interactionLocked;
 
   @override
@@ -112,18 +114,21 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onDoubleTapDown: onDoubleTapDown,
       onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
-      onPanEnd: (details) {
-        if (interactionLocked || hadMultiplePointers()) return;
-        final swipeDirection = LastPageSwipeUtils.detectSwipeDirection(details);
+      onPanEnd: interactionLocked
+          ? null
+          : (details) {
+              if (interactionLocked || hadMultiplePointers()) return;
+              final swipeDirection =
+                  LastPageSwipeUtils.detectSwipeDirection(details);
 
-        if (swipeDirection != null) {
-          _handleAdvancedSwipeGesture(
-            context: context,
-            direction: swipeDirection,
-            details: details,
-          );
-        }
-      },
+              if (swipeDirection != null) {
+                _handleAdvancedSwipeGesture(
+                  context: context,
+                  direction: swipeDirection,
+                  details: details,
+                );
+              }
+            },
       child: child,
     );
   }
@@ -139,22 +144,26 @@ class DirectionalSwipeGestureHandler extends HookWidget {
       onDoubleTapDown: onDoubleTapDown,
       onDoubleTap: onDoubleTap,
       behavior: HitTestBehavior.translucent,
-      onHorizontalDragEnd: (details) {
-        if (interactionLocked || hadMultiplePointers()) return;
-        _handleSwipeGesture(
-          context: context,
-          details: details,
-          allowedAxis: Axis.vertical,
-        );
-      },
-      onVerticalDragEnd: (details) {
-        if (interactionLocked || hadMultiplePointers()) return;
-        _handleSwipeGesture(
-          context: context,
-          details: details,
-          allowedAxis: Axis.horizontal,
-        );
-      },
+      onHorizontalDragEnd: interactionLocked
+          ? null
+          : (details) {
+              if (interactionLocked || hadMultiplePointers()) return;
+              _handleSwipeGesture(
+                context: context,
+                details: details,
+                allowedAxis: Axis.vertical,
+              );
+            },
+      onVerticalDragEnd: interactionLocked
+          ? null
+          : (details) {
+              if (interactionLocked || hadMultiplePointers()) return;
+              _handleSwipeGesture(
+                context: context,
+                details: details,
+                allowedAxis: Axis.horizontal,
+              );
+            },
       child: child,
     );
   }

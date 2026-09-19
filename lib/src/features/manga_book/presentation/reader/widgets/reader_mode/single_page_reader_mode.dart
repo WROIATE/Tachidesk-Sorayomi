@@ -59,10 +59,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
     final scrollController = usePageController(initialPage: initialPage);
     final currentIndex = useState(scrollController.initialPage);
     final isZoomInteractionLocked = useState(false);
-    final zoomControllers = useMemoized(
-      () => <int, ReaderInteractiveViewerController>{},
-      [chapter.id],
-    );
     final pageTransforms = useMemoized(
       () => <int, Matrix4>{},
       [chapter.id],
@@ -225,8 +221,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
       onNext: nextPage,
       pageController: scrollController,
       interactionLocked: isZoomInteractionLocked.value,
-      onDoubleTap: (position) =>
-          zoomControllers[currentIndex.value]?.toggleZoomAt(position),
       currentPageFilePath: currentPageFilePath.value,
       readerAction: IconButton(
         key: const ValueKey('auto-page-turn-toggle'),
@@ -299,15 +293,10 @@ class SinglePageReaderMode extends HookConsumerWidget {
                             parent: AlwaysScrollableScrollPhysics(),
                           ),
                     itemBuilder: (context, index) {
-                      final zoomController = zoomControllers.putIfAbsent(
-                        index,
-                        ReaderInteractiveViewerController.new,
-                      );
                       return ReaderInteractiveViewer(
                         key: ValueKey('reader-page-zoom-${chapter.id}-$index'),
                         enabled: isPinchToZoomEnabled,
                         resetToken: chapter.id,
-                        controller: zoomController,
                         initialTransform: pageTransforms[index],
                         contentAspectRatio: index == currentIndex.value
                             ? currentPageAspectRatio.value

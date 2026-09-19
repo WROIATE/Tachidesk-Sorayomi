@@ -7,19 +7,23 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// Lets a new swipe catch a settling page even when zoom has disabled the
-/// PageView's own drag recognizer. Must sit outside Scrollable's IgnorePointer.
+/// For animation takeover, place outside Scrollable's IgnorePointer. Inside
+/// an unzoomed image, [allowIdleDrag] gives page dragging priority over scaling.
 class ReaderPageGestureHandler extends StatefulWidget {
   const ReaderPageGestureHandler({
     super.key,
     required this.controller,
     required this.scrollDirection,
     required this.child,
+    this.allowIdleDrag = false,
   });
 
   final PageController controller;
   final Axis scrollDirection;
   final Widget child;
+
+  /// Used inside the image recognizer so unzoomed page drags win the arena.
+  final bool allowIdleDrag;
 
   @override
   State<ReaderPageGestureHandler> createState() =>
@@ -32,25 +36,30 @@ class _ReaderPageGestureHandlerState extends State<ReaderPageGestureHandler> {
   final Set<int> _pointers = {};
   bool _hadMultiplePointers = false;
   double _origin = 0;
+  bool _idleDrag = false;
 
   bool _canCatch() {
     if (_pointers.isNotEmpty || !widget.controller.hasClients) return false;
     _hadMultiplePointers = false;
     // Scrolling with no fingers down is settling/programmatic motion. Use the
     // public notifier rather than depending on ScrollPosition's activity.
-    return widget.controller.position.isScrollingNotifier.value;
+    return widget.allowIdleDrag ||
+        widget.controller.position.isScrollingNotifier.value;
   }
 
   void _down(DragDownDetails details) {
     if (_hadMultiplePointers || !widget.controller.hasClients) return;
     final position = widget.controller.position;
-    if (!position.isScrollingNotifier.value) return;
+    _idleDrag = widget.allowIdleDrag;
+    if (!_idleDrag && !position.isScrollingNotifier.value) return;
     _origin = widget.controller.page!.round() * position.viewportDimension;
     _hold = position.hold(() => _hold = null);
   }
 
   void _start(DragStartDetails details) {
-    if (_hold == null || _hadMultiplePointers) return;
+    // PageView may replace our hold before losing the arena. An idle drag
+    // still owns this gesture and can start the native scroll activity.
+    if ((_hold == null && !_idleDrag) || _hadMultiplePointers) return;
     _drag = widget.controller.position.drag(details, () => _drag = null);
   }
 
@@ -106,6 +115,7 @@ class _ReaderPageGestureHandlerState extends State<ReaderPageGestureHandler> {
     final hold = _hold;
     _drag = null;
     _hold = null;
+    _idleDrag = false;
     drag?.cancel();
     hold?.cancel();
   }
@@ -170,8 +180,8 @@ class _ReaderPageGestureHandlerState extends State<ReaderPageGestureHandler> {
   }
 }
 
-// Do not enter the gesture arena while idle: a directional drag could otherwise
-// beat the image's scale recognizer and swallow normal image panning/pinching.
+// Idle entry is explicitly enabled only inside an unzoomed image. The outer
+// animation-catch handler must not compete with image panning or pinching.
 class _SettlingHorizontalDrag extends HorizontalDragGestureRecognizer {
   _SettlingHorizontalDrag(this.canCatch);
   final bool Function() canCatch;

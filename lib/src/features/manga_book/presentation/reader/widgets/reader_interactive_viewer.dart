@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../constants/app_constants.dart';
+import 'reader_page_gesture_handler.dart';
 
 class ReaderInteractiveViewerController {
   _ReaderInteractiveViewerState? _state;
@@ -78,6 +79,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
   double _pageDragOrigin = 0;
   bool _panAccepted = false;
   bool _hadMultiplePointers = false;
+  Offset? _doubleTapPosition;
 
   @override
   void initState() {
@@ -240,6 +242,7 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
     final localPosition = renderObject.globalToLocal(globalPosition);
+    if (!(Offset.zero & renderObject.size).contains(localPosition)) return;
     final focalPoint = Offset(
       localPosition.dx.clamp(0.0, _viewportSize.width).toDouble(),
       localPosition.dy.clamp(0.0, _viewportSize.height).toDouble(),
@@ -554,14 +557,40 @@ class _ReaderInteractiveViewerState extends State<ReaderInteractiveViewer>
           onPointerMove: (event) => _updatePointer(event, constraints.biggest),
           onPointerUp: _endPointer,
           onPointerCancel: _endPointer,
-          child: InteractiveViewer(
-            transformationController: _controller,
-            minScale: _minScale,
-            maxScale: _maxScale,
-            scaleEnabled: false,
-            panEnabled: _isZoomed && !_hasMultiplePointers,
-            onInteractionStart: (_) => _panAccepted = true,
-            child: widget.child,
+          child: GestureDetector(
+            // A paged image owns its double tap, so a gesture spanning page
+            // changes cannot accidentally zoom a different progress index.
+            onDoubleTapDown: widget.pageController == null
+                ? null
+                : (details) => _doubleTapPosition = details.globalPosition,
+            onDoubleTap: widget.pageController == null
+                ? null
+                : () {
+                    final position = _doubleTapPosition;
+                    _doubleTapPosition = null;
+                    if (position != null) _toggleDoubleTapZoom(position);
+                  },
+            onDoubleTapCancel: widget.pageController == null
+                ? null
+                : () => _doubleTapPosition = null,
+            child: InteractiveViewer(
+              transformationController: _controller,
+              minScale: _minScale,
+              maxScale: _maxScale,
+              scaleEnabled: false,
+              panEnabled: _isZoomed && !_hasMultiplePointers,
+              onInteractionStart: (_) => _panAccepted = true,
+              child: widget.pageController?.hasClients == true
+                  ? ReaderPageGestureHandler(
+                      controller: widget.pageController!,
+                      scrollDirection: axisDirectionToAxis(
+                        widget.pageController!.position.axisDirection,
+                      ),
+                      allowIdleDrag: !_isZoomed && !_hasMultiplePointers,
+                      child: widget.child,
+                    )
+                  : widget.child,
+            ),
           ),
         );
       },

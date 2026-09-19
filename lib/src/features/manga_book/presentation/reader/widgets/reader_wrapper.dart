@@ -945,8 +945,8 @@ class ReaderView extends HookWidget {
           child: ReaderNavigationLayoutWidget(
             onNext: onNext,
             onPrevious: onPrevious,
-            onDoubleTapDown: handleDoubleTapDown,
-            onDoubleTap: handleDoubleTap,
+            onDoubleTapDown: onDoubleTap == null ? null : handleDoubleTapDown,
+            onDoubleTap: onDoubleTap == null ? null : handleDoubleTap,
             navigationLayout: mangaReaderNavigationLayout,
             showReaderLayoutAnimation: showReaderLayoutAnimation,
           ),
@@ -968,8 +968,8 @@ class ReaderView extends HookWidget {
       onNextPage: onNext,
       onPreviousPage: onPrevious,
       pageController: controller,
-      onDoubleTapDown: handleDoubleTapDown,
-      onDoubleTap: handleDoubleTap,
+      onDoubleTapDown: onDoubleTap == null ? null : handleDoubleTapDown,
+      onDoubleTap: onDoubleTap == null ? null : handleDoubleTap,
       interactionLocked: interactionLocked,
       child: content,
     );
