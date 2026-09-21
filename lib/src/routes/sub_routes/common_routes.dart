@@ -40,15 +40,21 @@ class ReaderRoute extends GoRouteData {
 
   @override
   Page<void> buildPage(context, state) {
+    final child = ReaderScreen(
+      mangaId: mangaId,
+      chapterId: chapterId,
+      startAtEnd: startAtEnd,
+      startAtBeginning: startAtBeginning,
+      showReaderLayoutAnimation: showReaderLayoutAnimation,
+    );
+    // Cupertino routes provide the interactive edge-swipe back gesture.
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      return CupertinoPage<void>(key: state.pageKey, child: child);
+    }
+
     return CustomTransitionPage(
       key: state.pageKey,
-      child: ReaderScreen(
-        mangaId: mangaId,
-        chapterId: chapterId,
-        startAtEnd: startAtEnd,
-        startAtBeginning: startAtBeginning,
-        showReaderLayoutAnimation: showReaderLayoutAnimation,
-      ),
+      child: child,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final isChapterTransition = transVertical != null ||
             toPrev != null ||
