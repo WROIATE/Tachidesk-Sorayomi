@@ -15,79 +15,120 @@ import 'package:tachidesk_sorayomi/src/routes/router_config.dart';
 
 void main() {
   for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
-    testWidgets('reader back navigation on $platform', (tester) async {
-      tester.view.physicalSize = const Size(1024, 1366);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({});
-      final preferences = await SharedPreferences.getInstance();
-      Page<void>? readerPage;
-      final router = GoRouter(
-        navigatorKey: rootNavigatorKey,
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (_, __) => const Scaffold(body: Text('Manga details')),
-          ),
-          GoRoute(
-            path: '/reader',
-            pageBuilder: (context, state) {
-              readerPage = ReaderRoute(
-                mangaId: 1,
-                chapterId:
-                    int.parse(state.uri.queryParameters['chapter'] ?? '2'),
-                startAtBeginning:
-                    state.uri.queryParameters.containsKey('chapter'),
-              ).buildPage(context, state);
-              return readerPage!;
-            },
-          ),
-        ],
-      );
-      addTearDown(router.dispose);
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(preferences),
-          mangaBookRepositoryProvider.overrideWithValue(_EmptyRepository()),
-        ],
-        child: MaterialApp.router(
-          theme: ThemeData(platform: platform),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ));
-      router.push('/reader');
-      await tester.pumpAndSettle();
-      expect(find.byType(ReaderScreen), findsOneWidget);
+    for (final vertical in [false, true]) {
+      for (final previous in [false, true]) {
+        testWidgets(
+            'chapter direction and back on $platform (vertical: $vertical, previous: $previous)',
+            (tester) async {
+          tester.view.physicalSize = const Size(1024, 1366);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          SharedPreferences.setMockInitialValues({});
+          final preferences = await SharedPreferences.getInstance();
+          Page<void>? readerPage;
+          final router = GoRouter(
+            navigatorKey: rootNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) => const Scaffold(body: Text('Manga details')),
+              ),
+              GoRoute(
+                path: '/reader',
+                pageBuilder: (context, state) {
+                  readerPage = ReaderRoute(
+                    mangaId: 1,
+                    chapterId:
+                        int.parse(state.uri.queryParameters['chapter'] ?? '2'),
+                    transVertical:
+                        state.uri.queryParameters.containsKey('chapter')
+                            ? vertical
+                            : null,
+                    toPrev: state.uri.queryParameters.containsKey('chapter')
+                        ? previous
+                        : null,
+                    startAtBeginning:
+                        state.uri.queryParameters.containsKey('chapter') &&
+                            !previous,
+                    startAtEnd:
+                        state.uri.queryParameters.containsKey('chapter') &&
+                            previous,
+                  ).buildPage(context, state);
+                  return readerPage!;
+                },
+              ),
+            ],
+          );
+          addTearDown(router.dispose);
+          await tester.pumpWidget(ProviderScope(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(preferences),
+              mangaBookRepositoryProvider.overrideWithValue(_EmptyRepository()),
+            ],
+            child: MaterialApp.router(
+              theme: ThemeData(platform: platform),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              routerConfig: router,
+            ),
+          ));
+          router.push('/reader');
+          await tester.pumpAndSettle();
+          expect(find.byType(ReaderScreen), findsOneWidget);
 
-      if (platform == TargetPlatform.iOS) {
-        // A slow, short edge drag must be cancellable.
-        final gesture = await tester.startGesture(const Offset(1, 500));
-        await gesture.moveBy(const Offset(100, 0));
-        await tester.pump(const Duration(milliseconds: 500));
-        await gesture.up();
-        await tester.pumpAndSettle();
-        expect(find.byType(ReaderScreen), findsOneWidget);
+          // Use the same animated replacement as real chapter navigation.
+          router.pushReplacement('/reader?chapter=3');
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          final chapter = find.byWidgetPredicate(
+            (widget) => widget is ReaderScreen && widget.chapterId == 3,
+          );
+          final entryElement = tester.element(chapter);
+          final position = tester.getTopLeft(chapter);
+          final oldChapter = find.byWidgetPredicate(
+            (widget) => widget is ReaderScreen && widget.chapterId == 2,
+          );
+          expect(tester.getTopLeft(oldChapter), Offset.zero,
+              reason: 'Chapter replacement must not add leftward parallax');
+          final displacement = vertical ? position.dy : position.dx;
+          expect(displacement, previous ? lessThan(0) : greaterThan(0));
+          expect(vertical ? position.dx : position.dy, closeTo(0, 0.01));
+          await tester.pumpAndSettle();
+          expect(tester.getTopLeft(chapter), Offset.zero);
+          expect(identical(tester.element(chapter), entryElement), isTrue,
+              reason: 'Completing entry must preserve reader state');
 
-        // Switching chapters replaces the reader but must retain back support.
-        router.replace('/reader?chapter=3');
-        await tester.pumpAndSettle();
-        expect(tester.widget<ReaderScreen>(find.byType(ReaderScreen)).chapterId,
-            3);
-        await tester.dragFrom(
-          const Offset(1, 500),
-          const Offset(800, 0),
-        );
-      } else {
-        expect(readerPage, isA<CustomTransitionPage<void>>());
-        router.pop();
+          if (platform == TargetPlatform.iOS) {
+            // A slow, short edge drag must be cancellable.
+            final gesture = await tester.startGesture(const Offset(1, 500));
+            await gesture.moveBy(const Offset(100, 0));
+            await tester.pump(const Duration(milliseconds: 500));
+            expect(tester.getTopLeft(chapter).dx, greaterThan(0));
+            expect(tester.getTopLeft(chapter).dy, closeTo(0, 0.01));
+            await gesture.up();
+            await tester.pump(const Duration(milliseconds: 50));
+            expect(tester.getTopLeft(chapter).dx, greaterThanOrEqualTo(0));
+            expect(tester.getTopLeft(chapter).dy, closeTo(0, 0.01));
+            await tester.pumpAndSettle();
+            expect(tester.getTopLeft(chapter), Offset.zero);
+            expect(identical(tester.element(chapter), entryElement), isTrue);
+            expect(find.byType(ReaderScreen), findsOneWidget);
+
+            await tester.dragFrom(
+              const Offset(1, 500),
+              const Offset(800, 0),
+            );
+          } else {
+            expect(readerPage, isA<CustomTransitionPage<void>>());
+            router.pop();
+          }
+          await tester.pumpAndSettle();
+          expect(find.text('Manga details'), findsOneWidget);
+          expect(find.byType(ReaderScreen), findsNothing);
+        });
       }
-      await tester.pumpAndSettle();
-      expect(find.text('Manga details'), findsOneWidget);
-      expect(find.byType(ReaderScreen), findsNothing);
-    });
+    }
   }
 }
 

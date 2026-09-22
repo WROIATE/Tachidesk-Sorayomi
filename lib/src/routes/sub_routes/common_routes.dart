@@ -47,28 +47,26 @@ class ReaderRoute extends GoRouteData {
       startAtBeginning: startAtBeginning,
       showReaderLayoutAnimation: showReaderLayoutAnimation,
     );
-    // Cupertino routes provide the interactive edge-swipe back gesture.
+    final isChapterTransition = transVertical != null ||
+        toPrev != null ||
+        startAtEnd ||
+        startAtBeginning;
+    final offset = (transVertical.ifNull()
+            ? const Offset(0, 1)
+            : const Offset(1, 0)) *
+        (toPrev.ifNull() ? -1 : 1);
     if (Theme.of(context).platform == TargetPlatform.iOS) {
-      return CupertinoPage<void>(key: state.pageKey, child: child);
+      return ReaderCupertinoPage(
+        key: state.pageKey,
+        chapterEntryOffset: isChapterTransition ? offset : null,
+        child: child,
+      );
     }
 
     return CustomTransitionPage(
       key: state.pageKey,
       child: child,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final isChapterTransition = transVertical != null ||
-            toPrev != null ||
-            startAtEnd ||
-            startAtBeginning;
-        Offset offset = Offset.zero;
-        offset += Offset(
-          transVertical.ifNull() ? 0 : 1,
-          transVertical.ifNull() ? 1 : 0,
-        );
-        if (toPrev.ifNull()) {
-          offset *= -1;
-        }
-
         return DualTransitionBuilder(
           animation: animation,
           forwardBuilder: (context, animation, child) => isChapterTransition

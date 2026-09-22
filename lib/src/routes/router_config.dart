@@ -1,5 +1,4 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -42,6 +41,7 @@ import '../features/settings/presentation/server/server_screen.dart';
 import '../features/settings/presentation/settings/settings_screen.dart';
 import '../utils/extensions/custom_extensions.dart';
 import '../widgets/shell/navigation_shell_screen.dart';
+import 'reader_cupertino_page.dart';
 import 'shared_axis_page_transitions.dart';
 
 part 'router_config.g.dart';
