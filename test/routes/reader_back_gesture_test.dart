@@ -89,8 +89,12 @@ void main() {
           final oldChapter = find.byWidgetPredicate(
             (widget) => widget is ReaderScreen && widget.chapterId == 2,
           );
-          expect(tester.getTopLeft(oldChapter), Offset.zero,
-              reason: 'Chapter replacement must not add leftward parallax');
+          if (platform == TargetPlatform.iOS) {
+            expect(oldChapter, findsNothing);
+          } else {
+            expect(tester.getTopLeft(oldChapter), Offset.zero,
+                reason: 'Chapter replacement must not add leftward parallax');
+          }
           final displacement = vertical ? position.dy : position.dx;
           expect(displacement, previous ? lessThan(0) : greaterThan(0));
           expect(vertical ? position.dx : position.dy, closeTo(0, 0.01));

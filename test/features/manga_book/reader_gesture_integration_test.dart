@@ -10,6 +10,25 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/w
 import 'package:tachidesk_sorayomi/src/global_providers/global_providers.dart';
 
 void main() {
+  for (final reverse in [false, true]) {
+    testWidgets('disabled layout accepts an immediate edge fling: $reverse',
+        (tester) async {
+      final harness = await _pumpReader(
+        tester,
+        reverse: reverse,
+        layout: ReaderNavigationLayout.disabled,
+        settle: false,
+      );
+      await tester.flingFrom(
+        Offset(reverse ? 10 : 790, 300),
+        Offset(reverse ? 180 : -180, 0),
+        1800,
+      );
+      await tester.pumpAndSettle();
+      expect(harness.pager.page, 1);
+    });
+  }
+
   for (final advanced in [false, true]) {
     for (final reverse in [false, true]) {
       testWidgets('full reader pans a zoomed image: $advanced $reverse',
@@ -141,6 +160,8 @@ Future<_Harness> _pumpReader(
   bool advanced = false,
   bool reverse = false,
   bool zoomed = false,
+  ReaderNavigationLayout layout = ReaderNavigationLayout.rightAndLeft,
+  bool settle = true,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final preferences = await SharedPreferences.getInstance();
@@ -165,7 +186,7 @@ Future<_Harness> _pumpReader(
         onNext: () => harness.navigationTaps++,
         onPrevious: () => harness.navigationTaps++,
         prevNextChapterPair: null,
-        mangaReaderNavigationLayout: ReaderNavigationLayout.rightAndLeft,
+        mangaReaderNavigationLayout: layout,
         readerSwipeChapterToggle: !advanced,
         lastPageSwipeEnabled: advanced,
         resolvedReaderMode: reverse
@@ -223,6 +244,10 @@ Future<_Harness> _pumpReader(
       );
     })),
   ));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
   return harness;
 }
