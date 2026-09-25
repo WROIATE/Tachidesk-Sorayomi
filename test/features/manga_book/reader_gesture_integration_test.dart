@@ -10,6 +10,37 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/w
 import 'package:tachidesk_sorayomi/src/global_providers/global_providers.dart';
 
 void main() {
+  for (final layout in [
+    ReaderNavigationLayout.rightAndLeft,
+    ReaderNavigationLayout.edge,
+    ReaderNavigationLayout.kindlish,
+    ReaderNavigationLayout.lShaped,
+  ]) {
+    for (final reverse in [false, true]) {
+      for (final showHint in [false, true]) {
+        testWidgets('fresh reader edge swipe: $layout $reverse hint=$showHint',
+            (tester) async {
+          final harness = await _pumpReader(tester,
+              reverse: reverse,
+              layout: layout,
+              showHint: showHint,
+              settle: false);
+          final start = Offset(reverse ? 40 : 760, 300);
+          await tester.timedDragFrom(start, Offset(reverse ? 500 : -500, 0),
+              const Duration(milliseconds: 100));
+          await tester.pump(const Duration(milliseconds: 800));
+          expect(harness.pager.page, 1,
+              reason: 'Edge paging must work before the two-second hint ends');
+          await tester.tapAt(start);
+          await tester.pump(const Duration(milliseconds: 350));
+          expect(harness.navigationTaps, 1,
+              reason: 'The hint must preserve navigation tap zones');
+          await tester.pumpAndSettle();
+        });
+      }
+    }
+  }
+
   for (final advanced in [false, true]) {
     for (final reverse in [false, true]) {
       testWidgets('full reader pans a zoomed image: $advanced $reverse',
@@ -141,6 +172,9 @@ Future<_Harness> _pumpReader(
   bool advanced = false,
   bool reverse = false,
   bool zoomed = false,
+  ReaderNavigationLayout layout = ReaderNavigationLayout.rightAndLeft,
+  bool showHint = false,
+  bool settle = true,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final preferences = await SharedPreferences.getInstance();
@@ -165,7 +199,8 @@ Future<_Harness> _pumpReader(
         onNext: () => harness.navigationTaps++,
         onPrevious: () => harness.navigationTaps++,
         prevNextChapterPair: null,
-        mangaReaderNavigationLayout: ReaderNavigationLayout.rightAndLeft,
+        mangaReaderNavigationLayout: layout,
+        showReaderLayoutAnimation: showHint,
         readerSwipeChapterToggle: !advanced,
         lastPageSwipeEnabled: advanced,
         resolvedReaderMode: reverse
@@ -223,6 +258,10 @@ Future<_Harness> _pumpReader(
       );
     })),
   ));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
   return harness;
 }

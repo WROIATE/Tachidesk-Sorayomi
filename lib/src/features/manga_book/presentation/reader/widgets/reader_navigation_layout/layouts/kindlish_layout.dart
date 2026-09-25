@@ -38,7 +38,7 @@ class KindlishLayout extends StatelessWidget {
                   onTap: onLeftTap,
                   onDoubleTapDown: onDoubleTapDown,
                   onDoubleTap: onDoubleTap,
-                  child: Container(color: leftColor),
+                  child: IgnorePointer(child: Container(color: leftColor)),
                 ),
               ),
               Expanded(
@@ -48,7 +48,7 @@ class KindlishLayout extends StatelessWidget {
                   onTap: onRightTap,
                   onDoubleTapDown: onDoubleTapDown,
                   onDoubleTap: onDoubleTap,
-                  child: Container(color: rightColor),
+                  child: IgnorePointer(child: Container(color: rightColor)),
                 ),
               )
             ],
