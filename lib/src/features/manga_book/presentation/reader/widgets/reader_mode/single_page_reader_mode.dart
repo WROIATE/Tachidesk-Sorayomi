@@ -42,7 +42,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
     this.onPageChanged,
     this.reverse = false,
     this.scrollDirection = Axis.horizontal,
-    this.showReaderLayoutAnimation = false,
   });
 
   final MangaDto manga;
@@ -50,7 +49,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
   final ValueSetter<int>? onPageChanged;
   final bool reverse;
   final Axis scrollDirection;
-  final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
   final int initialPage;
   @override
@@ -216,7 +214,6 @@ class SinglePageReaderMode extends HookConsumerWidget {
       chapterPages: chapterPages,
       currentIndex: currentIndex.value,
       onChanged: (index) => scrollController.jumpToPage(index),
-      showReaderLayoutAnimation: showReaderLayoutAnimation,
       onPrevious: previousPage,
       onNext: nextPage,
       pageController: scrollController,

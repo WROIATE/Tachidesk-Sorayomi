@@ -243,6 +243,8 @@ Future<_Harness> _pumpReader(
   addTearDown(harness.pager.dispose);
   var locked = zoomed;
   var settledIndex = 0;
+  var currentLayout = showHints ? ReaderNavigationLayout.disabled : layout;
+  late StateSetter rebuild;
   final zoom = Matrix4.identity()
     ..[0] = 2
     ..[5] = 2
@@ -251,6 +253,7 @@ Future<_Harness> _pumpReader(
   await tester.pumpWidget(ProviderScope(
     overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
     child: MaterialApp(home: StatefulBuilder(builder: (context, setState) {
+      rebuild = setState;
       return ReaderView(
         toggleVisibility: () {},
         onLongPress: () => harness.longPresses++,
@@ -260,8 +263,7 @@ Future<_Harness> _pumpReader(
         onNext: () => harness.navigationTaps++,
         onPrevious: () => harness.navigationTaps++,
         prevNextChapterPair: null,
-        mangaReaderNavigationLayout: layout,
-        showReaderLayoutAnimation: showHints,
+        mangaReaderNavigationLayout: currentLayout,
         readerSwipeChapterToggle: !advanced,
         lastPageSwipeEnabled: advanced,
         resolvedReaderMode: reverse
@@ -319,6 +321,11 @@ Future<_Harness> _pumpReader(
       );
     })),
   ));
+  if (showHints) {
+    // Hints now start only when the effective layout changes.
+    rebuild(() => currentLayout = layout);
+    await tester.pump();
+  }
   if (settle) {
     await tester.pumpAndSettle();
   } else {

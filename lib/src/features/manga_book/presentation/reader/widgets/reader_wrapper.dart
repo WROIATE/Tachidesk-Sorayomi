@@ -56,7 +56,6 @@ class ReaderWrapper extends HookConsumerWidget {
     required this.onNext,
     required this.onPrevious,
     required this.scrollDirection,
-    this.showReaderLayoutAnimation = false,
     required this.chapterPages,
     this.pageController,
     this.onDoubleTap,
@@ -72,7 +71,6 @@ class ReaderWrapper extends HookConsumerWidget {
   final VoidCallback onNext;
   final int currentIndex;
   final Axis scrollDirection;
-  final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
   final PageController? pageController;
   final ValueChanged<Offset>? onDoubleTap;
@@ -589,7 +587,6 @@ class ReaderWrapper extends HookConsumerWidget {
                       resolvedReaderMode: resolvedReaderMode,
                       currentIndex: currentIndex,
                       chapterPages: chapterPages,
-                      showReaderLayoutAnimation: showReaderLayoutAnimation,
                       pageController: pageController,
                       onDoubleTap: onDoubleTap,
                       interactionLocked: interactionLocked,
@@ -869,7 +866,6 @@ class ReaderView extends HookWidget {
     required this.currentIndex,
     required this.chapterPages,
     required this.child,
-    this.showReaderLayoutAnimation = false,
     this.pageController,
     this.onDoubleTap,
     this.interactionLocked = false,
@@ -889,7 +885,6 @@ class ReaderView extends HookWidget {
   final ReaderMode resolvedReaderMode;
   final int currentIndex;
   final ChapterPagesDto chapterPages;
-  final bool showReaderLayoutAnimation;
   final Widget child;
   final PageController? pageController;
   final ValueChanged<Offset>? onDoubleTap;
@@ -940,7 +935,6 @@ class ReaderView extends HookWidget {
             onDoubleTapDown: onDoubleTap == null ? null : handleDoubleTapDown,
             onDoubleTap: onDoubleTap == null ? null : handleDoubleTap,
             navigationLayout: mangaReaderNavigationLayout,
-            showReaderLayoutAnimation: showReaderLayoutAnimation,
           ),
         ),
       ],

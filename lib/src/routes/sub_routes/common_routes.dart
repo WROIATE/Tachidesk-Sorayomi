@@ -47,8 +47,6 @@ class ReaderRoute extends GoRouteData {
       chapterId: chapterId,
       startAtEnd: startAtEnd,
       startAtBeginning: startAtBeginning,
-      // All entry points show hints once; chapter replacements do not repeat them.
-      showReaderLayoutAnimation: !isChapterTransition,
     );
     final offset = (transVertical.ifNull()
             ? const Offset(0, 1)

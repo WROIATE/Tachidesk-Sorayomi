@@ -26,34 +26,45 @@ class ReaderNavigationLayoutWidget extends HookConsumerWidget {
     required this.onNext,
     this.onDoubleTapDown,
     this.onDoubleTap,
-    this.showReaderLayoutAnimation = false,
   });
   final ReaderNavigationLayout? navigationLayout;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final GestureTapDownCallback? onDoubleTapDown;
   final GestureTapCallback? onDoubleTap;
-  final bool showReaderLayoutAnimation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final animationController = useAnimationController(duration: kLongDuration);
-    useAnimation(animationController);
-    final nextColorTween = ColorTween(
-      begin: showReaderLayoutAnimation ? Colors.green : Colors.transparent,
-    ).animate(animationController).value;
-
-    final prevColorTween = ColorTween(
-      begin: showReaderLayoutAnimation ? Colors.blue : Colors.transparent,
-    ).animate(animationController).value;
-    useEffect(() {
-      animationController.forward();
-      return;
-    }, []);
-
     final layout = navigationLayout == null ||
             navigationLayout == ReaderNavigationLayout.defaultNavigation
         ? ref.watch(readerNavigationLayoutKeyProvider)
         : navigationLayout;
+    final animationController = useAnimationController(
+      duration: kLongDuration,
+      initialValue: 1,
+    );
+    final previousLayout = useRef(layout);
+    useEffect(() {
+      // Mounting a reader (including a new chapter) never starts the hint.
+      if (previousLayout.value == layout) return null;
+      previousLayout.value = layout;
+      if (layout == null ||
+          layout == ReaderNavigationLayout.disabled ||
+          layout == ReaderNavigationLayout.defaultNavigation) {
+        animationController.value = 1;
+      } else {
+        animationController.forward(from: 0);
+      }
+      return null;
+    }, [layout]);
+
+    useAnimation(animationController);
+    final nextColorTween = ColorTween(
+      begin: Colors.green,
+    ).animate(animationController).value;
+
+    final prevColorTween = ColorTween(
+      begin: Colors.blue,
+    ).animate(animationController).value;
     final invertTap = ref.watch(invertTapProvider).ifNull();
     final VoidCallback? onLeftTap;
     final VoidCallback? onRightTap;

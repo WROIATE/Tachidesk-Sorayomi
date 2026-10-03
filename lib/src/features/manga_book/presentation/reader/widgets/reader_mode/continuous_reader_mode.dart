@@ -52,7 +52,6 @@ class ContinuousReaderMode extends HookConsumerWidget {
     this.onPageChanged,
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
-    this.showReaderLayoutAnimation = false,
   });
 
   final MangaDto manga;
@@ -61,7 +60,6 @@ class ContinuousReaderMode extends HookConsumerWidget {
   final ValueSetter<int>? onPageChanged;
   final Axis scrollDirection;
   final bool reverse;
-  final bool showReaderLayoutAnimation;
   final ChapterPagesDto chapterPages;
   final int initialPage;
 
@@ -177,7 +175,6 @@ class ContinuousReaderMode extends HookConsumerWidget {
       chapterPages: chapterPages,
       chapter: chapter,
       manga: manga,
-      showReaderLayoutAnimation: showReaderLayoutAnimation,
       currentIndex: currentIndex.value,
       currentPageFilePath: currentPageFilePath.value,
       onChanged: (index) {

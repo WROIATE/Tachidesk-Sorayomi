@@ -35,13 +35,11 @@ class ReaderScreen extends HookConsumerWidget {
     required this.chapterId,
     this.startAtEnd = false,
     this.startAtBeginning = false,
-    this.showReaderLayoutAnimation = false,
   });
   final int mangaId;
   final int chapterId;
   final bool startAtEnd;
   final bool startAtBeginning;
-  final bool showReaderLayoutAnimation;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mangaProvider = mangaWithIdProvider(mangaId: mangaId);
@@ -160,8 +158,6 @@ class ReaderScreen extends HookConsumerWidget {
                             manga: data,
                             onPageChanged: onPageChanged,
                             scrollDirection: Axis.vertical,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -170,8 +166,6 @@ class ReaderScreen extends HookConsumerWidget {
                             manga: data,
                             onPageChanged: onPageChanged,
                             reverse: true,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -181,8 +175,6 @@ class ReaderScreen extends HookConsumerWidget {
                             manga: data,
                             onPageChanged: onPageChanged,
                             scrollDirection: Axis.horizontal,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -193,8 +185,6 @@ class ReaderScreen extends HookConsumerWidget {
                             onPageChanged: onPageChanged,
                             scrollDirection: Axis.horizontal,
                             reverse: true,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -202,8 +192,6 @@ class ReaderScreen extends HookConsumerWidget {
                             chapter: chapterData,
                             manga: data,
                             onPageChanged: onPageChanged,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -212,8 +200,6 @@ class ReaderScreen extends HookConsumerWidget {
                             manga: data,
                             onPageChanged: onPageChanged,
                             showSeparator: true,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -221,8 +207,6 @@ class ReaderScreen extends HookConsumerWidget {
                             chapter: chapterData,
                             manga: data,
                             onPageChanged: onPageChanged,
-                            showReaderLayoutAnimation:
-                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -233,8 +217,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 chapter: chapterData,
                                 manga: data,
                                 onPageChanged: onPageChanged,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -244,8 +226,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 manga: data,
                                 onPageChanged: onPageChanged,
                                 reverse: true,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -254,8 +234,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 manga: data,
                                 onPageChanged: onPageChanged,
                                 scrollDirection: Axis.vertical,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -265,8 +243,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 manga: data,
                                 onPageChanged: onPageChanged,
                                 scrollDirection: Axis.horizontal,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -277,8 +253,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 onPageChanged: onPageChanged,
                                 scrollDirection: Axis.horizontal,
                                 reverse: true,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -288,8 +262,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 manga: data,
                                 onPageChanged: onPageChanged,
                                 showSeparator: true,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
@@ -297,8 +269,6 @@ class ReaderScreen extends HookConsumerWidget {
                                 chapter: chapterData,
                                 manga: data,
                                 onPageChanged: onPageChanged,
-                                showReaderLayoutAnimation:
-                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),

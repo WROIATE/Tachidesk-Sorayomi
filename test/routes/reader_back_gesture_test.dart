@@ -90,11 +90,6 @@ void main() {
           router.push('/reader');
           await tester.pumpAndSettle();
           expect(find.byType(ReaderScreen), findsOneWidget);
-          expect(
-              tester
-                  .widget<ReaderScreen>(find.byType(ReaderScreen))
-                  .showReaderLayoutAnimation,
-              isTrue);
           expect(systemUiCalls.last.arguments, 'SystemUiMode.immersiveSticky');
           systemUiCalls.clear();
 
@@ -106,8 +101,6 @@ void main() {
             (widget) => widget is ReaderScreen && widget.chapterId == 3,
           );
           final entryElement = tester.element(chapter);
-          expect(tester.widget<ReaderScreen>(chapter).showReaderLayoutAnimation,
-              isFalse);
           final position = tester.getTopLeft(chapter);
           final oldChapter = find.byWidgetPredicate(
             (widget) => widget is ReaderScreen && widget.chapterId == 2,
@@ -176,11 +169,6 @@ void main() {
           systemUiCalls.clear();
           router.push('/reader');
           await tester.pumpAndSettle();
-          expect(
-              tester
-                  .widget<ReaderScreen>(find.byType(ReaderScreen))
-                  .showReaderLayoutAnimation,
-              isTrue);
           expect(systemUiCalls.single.arguments, 'SystemUiMode.immersiveSticky',
               reason: 'Reopening the reader must enter fullscreen again');
         });
