@@ -24,6 +24,7 @@ class EdgeLayout extends StatelessWidget {
   final Color? rightColor;
   @override
   Widget build(BuildContext context) {
+    // Hint fills must not block the pager underneath, even when transparent.
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -33,7 +34,7 @@ class EdgeLayout extends StatelessWidget {
             onTap: onRightTap,
             onDoubleTapDown: onDoubleTapDown,
             onDoubleTap: onDoubleTap,
-            child: Container(color: rightColor),
+            child: IgnorePointer(child: Container(color: rightColor)),
           ),
         ),
         Expanded(
@@ -49,7 +50,7 @@ class EdgeLayout extends StatelessWidget {
                   onTap: onLeftTap,
                   onDoubleTapDown: onDoubleTapDown,
                   onDoubleTap: onDoubleTap,
-                  child: Container(color: leftColor),
+                  child: IgnorePointer(child: Container(color: leftColor)),
                 ),
               ),
             ],
@@ -61,7 +62,7 @@ class EdgeLayout extends StatelessWidget {
             onTap: onRightTap,
             onDoubleTapDown: onDoubleTapDown,
             onDoubleTap: onDoubleTap,
-            child: Container(color: rightColor),
+            child: IgnorePointer(child: Container(color: rightColor)),
           ),
         ),
       ],

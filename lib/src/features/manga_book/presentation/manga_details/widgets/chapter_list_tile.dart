@@ -101,7 +101,6 @@ class ChapterListTile extends StatelessWidget {
             : () => ReaderRoute(
                   mangaId: manga.id,
                   chapterId: chapter.id,
-                  showReaderLayoutAnimation: true,
                 ).push(context),
         onLongPress: () => toggleSelect(chapter),
       ),

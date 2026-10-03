@@ -26,7 +26,6 @@ class ReaderRoute extends GoRouteData {
     this.toPrev,
     this.startAtEnd = false,
     this.startAtBeginning = false,
-    this.showReaderLayoutAnimation = false,
   }) : assert(!(startAtEnd && startAtBeginning));
   final int mangaId;
   final int chapterId;
@@ -34,23 +33,23 @@ class ReaderRoute extends GoRouteData {
   final bool? toPrev;
   final bool startAtEnd;
   final bool startAtBeginning;
-  final bool showReaderLayoutAnimation;
 
   static final $parentNavigatorKey = _quickOpenNavigatorKey;
 
   @override
   Page<void> buildPage(context, state) {
+    final isChapterTransition = transVertical != null ||
+        toPrev != null ||
+        startAtEnd ||
+        startAtBeginning;
     final child = ReaderScreen(
       mangaId: mangaId,
       chapterId: chapterId,
       startAtEnd: startAtEnd,
       startAtBeginning: startAtBeginning,
-      showReaderLayoutAnimation: showReaderLayoutAnimation,
+      // All entry points show hints once; chapter replacements do not repeat them.
+      showReaderLayoutAnimation: !isChapterTransition,
     );
-    final isChapterTransition = transVertical != null ||
-        toPrev != null ||
-        startAtEnd ||
-        startAtBeginning;
     final offset = (transVertical.ifNull()
             ? const Offset(0, 1)
             : const Offset(1, 0)) *

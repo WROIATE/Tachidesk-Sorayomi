@@ -157,7 +157,6 @@ class DownloadedMangaScreen extends HookConsumerWidget {
                           : () => ReaderRoute(
                                 mangaId: mangaId,
                                 chapterId: chapter.id,
-                                showReaderLayoutAnimation: true,
                               ).push(context),
                       onLongPress: () => toggleSelection(chapter),
                     ),

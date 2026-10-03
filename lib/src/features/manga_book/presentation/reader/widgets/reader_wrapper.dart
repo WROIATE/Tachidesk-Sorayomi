@@ -7,7 +7,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_android_volume_keydown/flutter_android_volume_keydown.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
@@ -219,13 +218,6 @@ class ReaderWrapper extends HookConsumerWidget {
       ),
       [mangaReaderNavigationLayout],
     );
-
-    useEffect(() {
-      if (!visibility) {
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      }
-      return null;
-    }, [visibility]);
 
     // Enhanced navigation callbacks with last-page swipe logic
     final enhancedOnNext = useCallback(() {

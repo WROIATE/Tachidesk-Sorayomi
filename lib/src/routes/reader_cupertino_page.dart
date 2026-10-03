@@ -19,10 +19,25 @@ class _ReaderCupertinoRoute extends PageRoute<void>
   _ReaderCupertinoRoute(ReaderCupertinoPage page) : super(settings: page);
 
   ReaderCupertinoPage get _page => settings as ReaderCupertinoPage;
-  bool _hasEntered = false;
+
+  // Chapter visuals animate inside the route so the route can accept page
+  // gestures immediately. Regular reader entry keeps the native iOS timing.
+  @override
+  Duration get transitionDuration => _page.chapterEntryOffset == null
+      ? super.transitionDuration
+      : Duration.zero;
 
   @override
-  Widget buildContent(BuildContext context) => _page.child;
+  Duration get reverseTransitionDuration =>
+      CupertinoRouteTransitionMixin.kTransitionDuration;
+
+  @override
+  Widget buildContent(BuildContext context) {
+    final offset = _page.chapterEntryOffset;
+    return offset == null
+        ? _page.child
+        : _ChapterEntryTransition(offset: offset, child: _page.child);
+  }
 
   @override
   String? get title => _page.title;
@@ -40,47 +55,43 @@ class _ReaderCupertinoRoute extends PageRoute<void>
     }
     return super.canTransitionTo(nextRoute);
   }
+}
+
+class _ChapterEntryTransition extends StatefulWidget {
+  const _ChapterEntryTransition({
+    required this.offset,
+    required this.child,
+  });
+
+  final Offset offset;
+  final Widget child;
 
   @override
-  void install() {
-    super.install();
-    // The route animation can report completion during offstage layout.
-    // Only the controller tracks the actual chapter entry lifecycle.
-    controller!.addStatusListener(_trackEntry);
-  }
+  State<_ChapterEntryTransition> createState() =>
+      _ChapterEntryTransitionState();
+}
 
-  void _trackEntry(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      _hasEntered = true;
-    }
-  }
+class _ChapterEntryTransitionState extends State<_ChapterEntryTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    duration: CupertinoRouteTransitionMixin.kTransitionDuration,
+    vsync: this,
+  )..forward();
+  late final Animation<Offset> _position = Tween<Offset>(
+    begin: widget.offset,
+    end: Offset.zero,
+  ).animate(_controller);
 
   @override
   void dispose() {
-    controller!.removeStatusListener(_trackEntry);
+    _controller.dispose();
     super.dispose();
   }
 
   @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final offset = _page.chapterEntryOffset;
-    final enteringChapter = offset != null && !_hasEntered;
-    // Keep the widget tree stable when entry finishes, so reader state survives.
-    // Subsequent forward animation (a cancelled back swipe) stays Cupertino.
-    return super.buildTransitions(
-      context,
-      enteringChapter ? kAlwaysCompleteAnimation : animation,
-      secondaryAnimation,
-      SlideTransition(
-        position: Tween<Offset>(begin: offset ?? Offset.zero, end: Offset.zero)
-            .animate(enteringChapter ? animation : kAlwaysCompleteAnimation),
-        child: child,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SlideTransition(
+        position: _position,
+        transformHitTests: false,
+        child: widget.child,
+      );
 }

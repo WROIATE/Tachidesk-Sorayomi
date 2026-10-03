@@ -25,6 +25,7 @@ class LShapedLayout extends StatelessWidget {
   final Color? rightColor;
   @override
   Widget build(BuildContext context) {
+    // Hint fills must not block the pager underneath, even when transparent.
     return Column(
       children: [
         Expanded(
@@ -33,7 +34,7 @@ class LShapedLayout extends StatelessWidget {
             onTap: onLeftTap,
             onDoubleTapDown: onDoubleTapDown,
             onDoubleTap: onDoubleTap,
-            child: Container(color: leftColor),
+            child: IgnorePointer(child: Container(color: leftColor)),
           ),
         ),
         Expanded(
@@ -46,7 +47,7 @@ class LShapedLayout extends StatelessWidget {
                   onTap: onLeftTap,
                   onDoubleTapDown: onDoubleTapDown,
                   onDoubleTap: onDoubleTap,
-                  child: Container(color: leftColor),
+                  child: IgnorePointer(child: Container(color: leftColor)),
                 ),
               ),
               const Expanded(child: SizedBox.expand()),
@@ -56,7 +57,7 @@ class LShapedLayout extends StatelessWidget {
                   onTap: onRightTap,
                   onDoubleTapDown: onDoubleTapDown,
                   onDoubleTap: onDoubleTap,
-                  child: Container(color: rightColor),
+                  child: IgnorePointer(child: Container(color: rightColor)),
                 ),
               ),
             ],
@@ -68,7 +69,7 @@ class LShapedLayout extends StatelessWidget {
             onTap: onRightTap,
             onDoubleTapDown: onDoubleTapDown,
             onDoubleTap: onDoubleTap,
-            child: Container(color: rightColor),
+            child: IgnorePointer(child: Container(color: rightColor)),
           ),
         ),
       ],

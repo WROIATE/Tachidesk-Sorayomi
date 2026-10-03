@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tachidesk_sorayomi/src/constants/db_keys.dart';
 import 'package:tachidesk_sorayomi/src/constants/enum.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/domain/chapter_page/graphql/__generated__/fragment.graphql.dart';
 import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/widgets/reader_interactive_viewer.dart';
@@ -10,6 +11,94 @@ import 'package:tachidesk_sorayomi/src/features/manga_book/presentation/reader/w
 import 'package:tachidesk_sorayomi/src/global_providers/global_providers.dart';
 
 void main() {
+  for (final layout in [
+    ReaderNavigationLayout.lShaped,
+    ReaderNavigationLayout.rightAndLeft,
+    ReaderNavigationLayout.edge,
+    ReaderNavigationLayout.kindlish,
+  ]) {
+    for (final showHints in [false, true]) {
+      testWidgets(
+          'navigation layout preserves taps: $layout, hints: $showHints',
+          (tester) async {
+        final harness = await _pumpReader(tester,
+            layout: layout, showHints: showHints, settle: false);
+        await tester.tapAt(const Offset(50, 300));
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(harness.navigationTaps, 1);
+        await tester.tapAt(const Offset(750, 300));
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(harness.navigationTaps, 2);
+        expect(harness.pager.page, 0);
+        await tester.pumpAndSettle();
+        await tester.tapAt(const Offset(50, 300));
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(harness.navigationTaps, 3,
+            reason: 'Fading out the hint must not disable tap navigation');
+      });
+
+      for (final reverse in [false, true]) {
+        testWidgets(
+            'navigation layout accepts an immediate edge fling: $layout, hints: $showHints, reverse: $reverse',
+            (tester) async {
+          final harness = await _pumpReader(
+            tester,
+            layout: layout,
+            showHints: showHints,
+            reverse: reverse,
+            settle: false,
+          );
+          await tester.flingFrom(
+            Offset(reverse ? 50 : 750, 300),
+            Offset(reverse ? 180 : -180, 0),
+            1800,
+          );
+          expect(harness.pager.page, greaterThan(0),
+              reason: 'The first swipe must reach the pager immediately');
+          await tester.pumpAndSettle();
+          expect(harness.pager.page, 1);
+          expect(harness.navigationTaps, 0);
+        });
+      }
+    }
+  }
+
+  for (final settings in [
+    (
+      manga: ReaderNavigationLayout.defaultNavigation,
+      global: ReaderNavigationLayout.disabled,
+    ),
+    (
+      manga: ReaderNavigationLayout.disabled,
+      global: ReaderNavigationLayout.rightAndLeft,
+    ),
+  ]) {
+    for (final reverse in [false, true]) {
+      testWidgets(
+          'disabled layout accepts an immediate edge fling: $settings, reverse: $reverse',
+          (tester) async {
+        final harness = await _pumpReader(
+          tester,
+          reverse: reverse,
+          layout: settings.manga,
+          globalLayout: settings.global,
+          settle: false,
+        );
+        await tester.flingFrom(
+          Offset(reverse ? 10 : 790, 300),
+          Offset(reverse ? 180 : -180, 0),
+          1800,
+        );
+        await tester.pumpAndSettle();
+        expect(harness.pager.page, 1);
+        await tester.tapAt(const Offset(50, 300));
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(harness.navigationTaps, 0,
+            reason: 'A disabled layout must not leave active tap zones');
+      });
+    }
+  }
+
   for (final advanced in [false, true]) {
     for (final reverse in [false, true]) {
       testWidgets('full reader pans a zoomed image: $advanced $reverse',
@@ -141,8 +230,14 @@ Future<_Harness> _pumpReader(
   bool advanced = false,
   bool reverse = false,
   bool zoomed = false,
+  ReaderNavigationLayout layout = ReaderNavigationLayout.rightAndLeft,
+  ReaderNavigationLayout globalLayout = ReaderNavigationLayout.disabled,
+  bool showHints = false,
+  bool settle = true,
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({
+    DBKeys.readerNavigationLayout.name: globalLayout.index,
+  });
   final preferences = await SharedPreferences.getInstance();
   final harness = _Harness();
   addTearDown(harness.pager.dispose);
@@ -165,7 +260,8 @@ Future<_Harness> _pumpReader(
         onNext: () => harness.navigationTaps++,
         onPrevious: () => harness.navigationTaps++,
         prevNextChapterPair: null,
-        mangaReaderNavigationLayout: ReaderNavigationLayout.rightAndLeft,
+        mangaReaderNavigationLayout: layout,
+        showReaderLayoutAnimation: showHints,
         readerSwipeChapterToggle: !advanced,
         lastPageSwipeEnabled: advanced,
         resolvedReaderMode: reverse
@@ -223,6 +319,10 @@ Future<_Harness> _pumpReader(
       );
     })),
   ));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
   return harness;
 }

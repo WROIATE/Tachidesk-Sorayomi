@@ -7,7 +7,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -23,6 +22,7 @@ import '../../domain/manga/manga_model.dart';
 import '../manga_details/controller/manga_details_controller.dart';
 import 'controller/reader_controller.dart';
 import 'controller/reader_overlay_controller.dart';
+import 'controller/reader_system_ui_controller.dart';
 import 'utils/reader_initial_page.dart';
 import 'utils/reader_progress.dart';
 import 'widgets/reader_mode/continuous_reader_mode.dart';
@@ -58,6 +58,7 @@ class ReaderScreen extends HookConsumerWidget {
 
     // Preserve the overlay state across chapter routes and their loading UI.
     ref.watch(readerOverlayVisibilityProvider);
+    ref.watch(readerSystemUiProvider);
 
     final progressSaver = useMemoized(
       () => ReaderProgressSaver(
@@ -115,14 +116,6 @@ class ReaderScreen extends HookConsumerWidget {
       },
       [chapterPages.valueOrNull, progressSaver],
     );
-
-    useEffect(() {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      return () => SystemChrome.setEnabledSystemUIMode(
-            SystemUiMode.manual,
-            overlays: SystemUiOverlay.values,
-          );
-    }, []);
 
     return PopScope(
       onPopInvokedWithResult: (didPop, _) async {
@@ -209,6 +202,8 @@ class ReaderScreen extends HookConsumerWidget {
                             chapter: chapterData,
                             manga: data,
                             onPageChanged: onPageChanged,
+                            showReaderLayoutAnimation:
+                                showReaderLayoutAnimation,
                             chapterPages: chapterPagesData,
                             initialPage: initialPage,
                           ),
@@ -238,6 +233,8 @@ class ReaderScreen extends HookConsumerWidget {
                                 chapter: chapterData,
                                 manga: data,
                                 onPageChanged: onPageChanged,
+                                showReaderLayoutAnimation:
+                                    showReaderLayoutAnimation,
                                 chapterPages: chapterPagesData,
                                 initialPage: initialPage,
                               ),
